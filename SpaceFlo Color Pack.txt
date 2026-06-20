@@ -1,4 +1,4 @@
-**SpaceFlo Color Pack**
+**SpaceFlow Color Pack**
 
 | Token | Hex | Use |
 |-------|-----|-----|

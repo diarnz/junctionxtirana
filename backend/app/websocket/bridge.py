@@ -22,7 +22,7 @@ async def three_d_bridge(websocket: WebSocket) -> None:
         {
             "type": "CONNECTED",
             "payload": {
-                "message": "SpaceFlo 3D Bridge ready",
+                "message": "SpaceFlow 3D Bridge ready",
                 "version": "1.0.0",
                 "connections": ws_manager.connection_count("3d-bridge"),
             },

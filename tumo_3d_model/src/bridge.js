@@ -1,6 +1,6 @@
 import { applyLayoutFromPlan } from './furnishing.js';
 
-class SpaceFloBridge {
+class SpaceFlowBridge {
   constructor() {
     this.ws = null;
     this.connected = false;
@@ -17,7 +17,7 @@ class SpaceFloBridge {
       this.ws.addEventListener('open', () => {
         this.connected = true;
         this.reconnectAttempts = 0;
-        console.log('[SpaceFlo Bridge] Connected to backend');
+        console.log('[SpaceFlow Bridge] Connected to backend');
       });
 
       this.ws.addEventListener('message', (event) => {
@@ -25,13 +25,13 @@ class SpaceFloBridge {
           const message = JSON.parse(event.data);
           this.handleMessage(message);
         } catch (error) {
-          console.warn('[SpaceFlo Bridge] Failed to parse incoming message', error);
+          console.warn('[SpaceFlow Bridge] Failed to parse incoming message', error);
         }
       });
 
       this.ws.addEventListener('close', () => {
         if (this.connected) {
-          console.log('[SpaceFlo Bridge] Disconnected from backend');
+          console.log('[SpaceFlow Bridge] Disconnected from backend');
         }
         this.connected = false;
         this.scheduleReconnect();
@@ -85,5 +85,5 @@ class SpaceFloBridge {
   }
 }
 
-export const bridge = new SpaceFloBridge();
-window.spacefloBridge = bridge;
+export const bridge = new SpaceFlowBridge();
+window.spaceFlowBridge = bridge;

@@ -16,7 +16,7 @@ async def admin_channel(websocket: WebSocket) -> None:
         {
             "type": "CONNECTED",
             "payload": {
-                "message": "SpaceFlo admin realtime channel ready",
+                "message": "SpaceFlow admin realtime channel ready",
                 "active_3d_connections": ws_manager.connection_count("3d-bridge"),
             },
         },

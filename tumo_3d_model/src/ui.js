@@ -386,9 +386,9 @@ export function enterRoom(hitObject) {
   };
 
   enterFurnishingMode(roomGroup, d);
-  window.spacefloBridge?.send('ROOM_ENTERED', { roomId: d.roomId, roomName: d.name });
-  window.spacefloBridge?.send('REQUEST_LAYOUT', { roomId: d.roomId });
-  window.spacefloBridge?.applyPendingLayout?.(d.roomId);
+  window.spaceFlowBridge?.send('ROOM_ENTERED', { roomId: d.roomId, roomName: d.name });
+  window.spaceFlowBridge?.send('REQUEST_LAYOUT', { roomId: d.roomId });
+  window.spaceFlowBridge?.applyPendingLayout?.(d.roomId);
 
   // Apply frosted glass blur to room windows
   roomGroup.traverse(child => {
@@ -407,7 +407,7 @@ export function enterRoom(hitObject) {
 export function exitIndoorMode() {
   if (!indoorState.isIndoorMode) return;
   if (window._currentRoomId) {
-    window.spacefloBridge?.send('ROOM_EXITED', { roomId: window._currentRoomId });
+    window.spaceFlowBridge?.send('ROOM_EXITED', { roomId: window._currentRoomId });
   }
   window._currentRoomId = null;
   document.getElementById('btn-reset').click();

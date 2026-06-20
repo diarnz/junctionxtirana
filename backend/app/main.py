@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="Pyramid of Tirana - SpaceFlo operations backend",
+    description="Pyramid of Tirana - SpaceFlow operations backend",
     lifespan=lifespan,
 )
 

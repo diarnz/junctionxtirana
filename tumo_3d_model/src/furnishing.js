@@ -122,7 +122,7 @@ function persistLayout() {
   if (!roomData?.roomId) return;
   const items = serializeLayout();
   saveLayout(roomData.roomId, items);
-  window.spacefloBridge?.send('LAYOUT_SAVED', { roomId: roomData.roomId, items });
+  window.spaceFlowBridge?.send('LAYOUT_SAVED', { roomId: roomData.roomId, items });
 }
 
 function applyGhostOpacity(mesh, opacity) {

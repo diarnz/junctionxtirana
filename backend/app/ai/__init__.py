@@ -703,7 +703,7 @@ async def _maybe_llm_rewrite(system_prompt: str, user_prompt: str, fallback: str
                 headers={
                     "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
                     "HTTP-Referer": "http://localhost:8080",
-                    "X-Title": "SpaceFlo",
+                    "X-Title": "SpaceFlow",
                 },
                 json={
                     "model": settings.AI_MODEL,

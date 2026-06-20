@@ -93,18 +93,18 @@ ASSET_SEED = [
 
 DEV_USERS = [
     {
-        "email": "admin@spaceflo.dev",
-        "full_name": "SpaceFlo Admin",
+        "email": "admin@spaceflow.dev",
+        "full_name": "SpaceFlow Admin",
         "role": "admin",
         "password": "Admin1234!",
-        "organization": "SpaceFlo",
+        "organization": "SpaceFlow",
     },
     {
-        "email": "staff@spaceflo.dev",
-        "full_name": "SpaceFlo Staff",
+        "email": "staff@spaceflow.dev",
+        "full_name": "SpaceFlow Staff",
         "role": "staff",
         "password": "Staff1234!",
-        "organization": "SpaceFlo",
+        "organization": "SpaceFlow",
     },
 ]
 

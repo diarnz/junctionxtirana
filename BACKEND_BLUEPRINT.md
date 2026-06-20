@@ -1,4 +1,4 @@
-# SpaceFlo — Backend Implementation Blueprint
+# SpaceFlow — Backend Implementation Blueprint
 ## Phase-by-Phase Development Guide
 ### Pyramid Backstage Challenge | JunctionX Tirana 2026
 
@@ -147,7 +147,7 @@ class Settings(BaseSettings):
     ]
 
     # ── App meta ──────────────────────────────────────────────────────────────
-    APP_NAME: str = "SpaceFlo API"
+    APP_NAME: str = "SpaceFlow API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 
@@ -222,9 +222,9 @@ from app.config import settings
 async def lifespan(app: FastAPI):
     """Startup and shutdown logic."""
     # Future: warm up DB connection pool, run startup checks
-    print(f"[SpaceFlo] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    print(f"[SpaceFlow] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     yield
-    print("[SpaceFlo] Shutting down")
+    print("[SpaceFlow] Shutting down")
 
 
 def create_app() -> FastAPI:
@@ -3954,7 +3954,7 @@ async def three_d_bridge_endpoint(websocket: WebSocket):
         await ws_manager.send_to_one(websocket, {
             "type": "CONNECTED",
             "payload": {
-                "message": "SpaceFlo 3D Bridge ready",
+                "message": "SpaceFlow 3D Bridge ready",
                 "version": "1.0",
                 "ws_connections": ws_manager.connection_count("3d-bridge"),
             }
@@ -4050,7 +4050,7 @@ async def admin_channel_endpoint(websocket: WebSocket):
         await ws_manager.send_to_one(websocket, {
             "type": "CONNECTED",
             "payload": {
-                "message": "SpaceFlo Admin Channel ready",
+                "message": "SpaceFlow Admin Channel ready",
                 "active_3d_connections": ws_manager.connection_count("3d-bridge"),
             }
         })
@@ -4089,12 +4089,12 @@ app.include_router(ws_admin_router)
 const ws = new WebSocket('ws://localhost:8080/ws/3d-bridge');
 ws.onopen = () => console.log('Connected');
 ws.onmessage = e => console.log('Received:', JSON.parse(e.data));
-// Expected: {type:"CONNECTED", payload:{message:"SpaceFlo 3D Bridge ready",...}}
+// Expected: {type:"CONNECTED", payload:{message:"SpaceFlow 3D Bridge ready",...}}
 
 const wsAdmin = new WebSocket('ws://localhost:8080/ws/admin');
 wsAdmin.onopen = () => console.log('Admin connected');
 wsAdmin.onmessage = e => console.log('Admin received:', JSON.parse(e.data));
-// Expected: {type:"CONNECTED", payload:{message:"SpaceFlo Admin Channel ready",...}}
+// Expected: {type:"CONNECTED", payload:{message:"SpaceFlow Admin Channel ready",...}}
 ```
 
 ---
@@ -4546,9 +4546,9 @@ from app.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(f"[SpaceFlo] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    print(f"[SpaceFlow] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     yield
-    print("[SpaceFlo] Shutting down")
+    print("[SpaceFlow] Shutting down")
 
 
 def create_app() -> FastAPI:
@@ -4866,6 +4866,6 @@ echo "All integration tests complete."
 
 ---
 
-*Backend Implementation Blueprint — SpaceFlo / JunctionX Tirana 2026*
+*Backend Implementation Blueprint — SpaceFlow / JunctionX Tirana 2026*
 *All phases produce the contracts consumed by: Vue.js Frontend Blueprint (F-phases),*
 *Agentic AI Blueprint (A-phases), and Three.js Bridge modifications.*

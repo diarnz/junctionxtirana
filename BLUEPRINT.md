@@ -1,4 +1,4 @@
-# SpaceFlo — Full System Blueprint
+# SpaceFlow — Full System Blueprint
 ## JunctionX Tirana 2026 | Pyramid Backstage Challenge (AADF)
 
 ---
@@ -49,7 +49,7 @@
 
 ## 1. Vision & Project Scope
 
-SpaceFlo transforms the Pyramid of Tirana's operational back-office from fragmented emails and spreadsheets into a unified digital platform. The system has three defining pillars that, combined, make it unique among the 27 teams in this challenge:
+SpaceFlow transforms the Pyramid of Tirana's operational back-office from fragmented emails and spreadsheets into a unified digital platform. The system has three defining pillars that, combined, make it unique among the 27 teams in this challenge:
 
 **Pillar 1 — Smart Event Operations Hub**
 A client submits an event request. The platform immediately checks which of the Pyramid's four main spaces (Blue, Orange, Green, Yellow on floors 0 and -1, plus corridors and transitional areas) can host it, runs a conflict check across all venues and dates simultaneously, and generates a structured quotation. The admin reviews, optionally adjusts the offering (e.g., if 100 chairs are requested but only 80 are available, the system suggests an offering with 80 chairs plus a rental quote for 20), and approves. The approved request auto-generates a detailed setup and teardown task list with assignees and deadlines.
@@ -174,13 +174,13 @@ An agentic AI, integrated with the live Three.js 3D model of the Pyramid, accept
 | Router | Vue Router 4 | Official, supports nested routes needed for dashboard |
 | State | Pinia | Official Vue state library, TypeScript-first, devtools |
 | HTTP | Axios with interceptors | Simple, supports request/response interceptors for auth tokens |
-| Styling | Custom CSS with SpaceFlo design tokens | Matches the provided color pack; no heavy CSS framework needed |
+| Styling | Custom CSS with SpaceFlow design tokens | Matches the provided color pack; no heavy CSS framework needed |
 | UI helpers | @headlessui/vue | Accessible modals, dropdowns, transitions |
 | Icons | heroicons (SVG inline) | Clean, consistent, framework-agnostic |
 | Charts | Chart.js + vue-chartjs | Inventory stats, booking trends |
 | Calendar | FullCalendar (@fullcalendar/vue3) | Venue availability view with event overlays |
 | Forms | VeeValidate + Yup | Form validation for booking requests |
-| Notifications | Custom toast system (Pinia-based) | Lightweight, matches SpaceFlo style |
+| Notifications | Custom toast system (Pinia-based) | Lightweight, matches SpaceFlow style |
 | Language | TypeScript | Type safety for the API contract layer |
 
 ### Database
@@ -644,7 +644,7 @@ from app.websocket.admin import router as ws_admin_router
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="SpaceFlo API",
+        title="SpaceFlow API",
         description="Pyramid of Tirana — Event Operations Platform",
         version="1.0.0",
     )
@@ -1191,7 +1191,7 @@ async def run_agent(
                 headers={
                     "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
                     "HTTP-Referer": "http://localhost:8080",
-                    "X-Title": "SpaceFlo",
+                    "X-Title": "SpaceFlow",
                 },
                 json={
                     "model": settings.AI_MODEL,
@@ -1270,7 +1270,7 @@ async def execute_tool(name: str, args: dict, context: dict, db) -> Any:
 
 ### Phase A2: Room Design Agent (3D Integration)
 
-**Goal**: The most visually impressive part of SpaceFlo. The agent receives a natural language prompt describing a desired room configuration, queries the inventory, calculates a valid furniture layout, and pushes it live to the Three.js 3D app via WebSocket.
+**Goal**: The most visually impressive part of SpaceFlow. The agent receives a natural language prompt describing a desired room configuration, queries the inventory, calculates a valid furniture layout, and pushes it live to the Three.js 3D app via WebSocket.
 
 #### `app/ai/tools/layout_tools.py` — Full Definition
 
@@ -1454,7 +1454,7 @@ async def _generate_room_layout(args: dict, context: dict) -> dict:
 ```python
 # app/ai/prompts.py (room_designer section)
 ROOM_DESIGNER_PROMPT = """
-You are SpaceFlo's 3D Room Design Agent for the Pyramid of Tirana.
+You are SpaceFlow's 3D Room Design Agent for the Pyramid of Tirana.
 Your role is to configure rooms in the live 3D visualization based on natural language descriptions.
 
 When given a request to design a room:
@@ -1682,7 +1682,7 @@ async def three_d_bridge(websocket: WebSocket):
         # Send welcome/sync message
         await ws_manager.send_to_one(websocket, {
             "type": "CONNECTED",
-            "payload": {"message": "SpaceFlo 3D Bridge connected", "version": "1.0"}
+            "payload": {"message": "SpaceFlow 3D Bridge connected", "version": "1.0"}
         })
         while True:
             raw = await websocket.receive_text()
@@ -1755,11 +1755,11 @@ async def admin_channel(websocket: WebSocket):
 
 ```javascript
 /**
- * SpaceFlo Bridge — WebSocket client connecting the Three.js 3D app
+ * SpaceFlow Bridge — WebSocket client connecting the Three.js 3D app
  * to the Python backend for real-time AI-driven room configuration.
  */
 
-export class SpaceFloBridge {
+export class SpaceFlowBridge {
     constructor() {
         this.ws = null;
         this.reconnectDelay = 3000;
@@ -1774,7 +1774,7 @@ export class SpaceFloBridge {
             this.ws = new WebSocket(url);
 
             this.ws.addEventListener('open', () => {
-                console.log('[SpaceFlo Bridge] Connected to backend');
+                console.log('[SpaceFlow Bridge] Connected to backend');
                 this._connected = true;
                 this.reconnectAttempts = 0;
                 this._emit('connected');
@@ -1785,20 +1785,20 @@ export class SpaceFloBridge {
                     const msg = JSON.parse(event.data);
                     this._handleIncoming(msg);
                 } catch (e) {
-                    console.warn('[SpaceFlo Bridge] Failed to parse message:', e);
+                    console.warn('[SpaceFlow Bridge] Failed to parse message:', e);
                 }
             });
 
             this.ws.addEventListener('close', () => {
                 this._connected = false;
-                console.log('[SpaceFlo Bridge] Disconnected — will attempt reconnect');
+                console.log('[SpaceFlow Bridge] Disconnected — will attempt reconnect');
                 this._emit('disconnected');
                 this._scheduleReconnect(url);
             });
 
             this.ws.addEventListener('error', (err) => {
                 // Silently handle — backend may not be running
-                console.debug('[SpaceFlo Bridge] WebSocket error (backend may be offline)');
+                console.debug('[SpaceFlow Bridge] WebSocket error (backend may be offline)');
             });
         } catch (e) {
             this._scheduleReconnect(url);
@@ -1855,7 +1855,7 @@ export class SpaceFloBridge {
     get isConnected() { return this._connected; }
 }
 
-export const bridge = new SpaceFloBridge();
+export const bridge = new SpaceFlowBridge();
 ```
 
 #### Modifications to `tumo_3d_model/src/main.js`
@@ -2032,13 +2032,13 @@ async def sync_layout_from_3d(three_d_room_id: str, items: list) -> None:
 
 ### Phase F1: Project Setup & Design System
 
-**Goal**: Bootstrap the Vue 3 + Vite + TypeScript project, install all dependencies, set up routing, Pinia store, Axios, and implement the SpaceFlo design system as CSS custom properties.
+**Goal**: Bootstrap the Vue 3 + Vite + TypeScript project, install all dependencies, set up routing, Pinia store, Axios, and implement the SpaceFlow design system as CSS custom properties.
 
 #### Project Creation
 
 ```bash
-npm create vite@latest spaceflo-frontend -- --template vue-ts
-cd spaceflo-frontend
+npm create vite@latest spaceflow-frontend -- --template vue-ts
+cd spaceflow-frontend
 npm install vue-router@4 pinia axios @headlessui/vue @vueuse/core
 npm install vee-validate yup
 npm install chart.js vue-chartjs
@@ -2137,7 +2137,7 @@ frontend/
 │   │   └── index.ts               # TypeScript interfaces matching API schemas
 │   └── assets/
 │       ├── styles/
-│       │   ├── tokens.css         # SpaceFlo CSS custom properties
+│       │   ├── tokens.css         # SpaceFlow CSS custom properties
 │       │   ├── base.css           # Reset + typography
 │       │   ├── components.css     # Shared component styles
 │       │   └── utilities.css      # Utility classes
@@ -2147,7 +2147,7 @@ frontend/
 └── tsconfig.json
 ```
 
-#### `src/assets/styles/tokens.css` — SpaceFlo Design Tokens
+#### `src/assets/styles/tokens.css` — SpaceFlow Design Tokens
 
 ```css
 :root {
@@ -2267,7 +2267,7 @@ api.interceptors.response.use(
 
 ### Phase F2: Public Booking Portal
 
-**Goal**: The client-facing side of SpaceFlo. Clean, modern, and trustworthy. Three main pages: Landing (hero, venue overview, how-it-works), Venues Browser, and the Booking Form.
+**Goal**: The client-facing side of SpaceFlow. Clean, modern, and trustworthy. Three main pages: Landing (hero, venue overview, how-it-works), Venues Browser, and the Booking Form.
 
 #### `HomeView.vue` — Sections
 
@@ -2275,7 +2275,7 @@ api.interceptors.response.use(
 2. **Venues Grid** — cards for each of the 5 Pyramid spaces, each showing name, capacity range, floor, color accent, and "Check Availability" button
 3. **How It Works** — 4-step horizontal flow: Submit Request → AI Analysis → Get Quotation → Confirm & Plan
 4. **Stats Bar** — "400+ events hosted", "5 unique spaces", "5,000+ satisfied guests"
-5. **Footer** — Pyramid of Tirana branding, SpaceFlo platform link
+5. **Footer** — Pyramid of Tirana branding, SpaceFlow platform link
 
 #### `BookingView.vue` — Multi-Step Form
 
@@ -2480,7 +2480,7 @@ Uses `@fullcalendar/vue3` with `timegrid` plugin:
 
 ### Phase F9: 3D Visualization Tab
 
-**Goal**: Embed the Three.js 3D app inside the admin dashboard so admins can see and interact with the 3D Pyramid without leaving the SpaceFlo platform.
+**Goal**: Embed the Three.js 3D app inside the admin dashboard so admins can see and interact with the 3D Pyramid without leaving the SpaceFlow platform.
 
 #### `VisualizationView.vue`
 
@@ -2745,8 +2745,8 @@ VITE_THREE_D_URL=http://localhost:3000
 ```env
 OPENROUTER_API_KEY=sk-or-v1-...
 AI_IMAGE_GENERATION_MODEL=nvidia/llama-nemotron-rerank-vl-1b-v2:free
-SPACEFLO_BACKEND_WS=ws://localhost:8080/ws/3d-bridge
-SPACEFLO_BACKEND_API=http://localhost:8080/api/v1
+SPACEFLOW_BACKEND_WS=ws://localhost:8080/ws/3d-bridge
+SPACEFLOW_BACKEND_API=http://localhost:8080/api/v1
 ```
 
 ---
@@ -2833,5 +2833,5 @@ Navigate to Calendar. July 20 shows the AlbTech Summit as a blue block in the Bl
 
 ---
 
-*Blueprint authored by SpaceFlo Team — JunctionX Tirana 2026*
+*Blueprint authored by SpaceFlow Team — JunctionX Tirana 2026*
 *Three.js 3D: `localhost:3000` | Vue.js Frontend: `localhost:5173` | Python Backend: `localhost:8080`*

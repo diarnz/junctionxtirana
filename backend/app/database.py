@@ -25,6 +25,9 @@ if not settings.is_sqlite:
             "pool_recycle": 3600,
         }
     )
+    if "pooler.supabase.com" in settings.DATABASE_URL:
+        # Supabase poolers can reject psycopg prepared statements across pooled sessions.
+        engine_kwargs["connect_args"] = {"prepare_threshold": None}
 
 engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 

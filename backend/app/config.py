@@ -13,13 +13,13 @@ DATA_DIR = BACKEND_DIR / "data"
 
 
 def _default_database_url() -> str:
-    db_path = DATA_DIR / "spaceflo.db"
+    db_path = DATA_DIR / "spaceflow.db"
     return f"sqlite+aiosqlite:///{db_path.as_posix()}"
 
 
 def _default_secret_key() -> str:
     # Safe dev fallback so the app boots even before production env is wired.
-    return "spaceflo-dev-secret-key-change-me-before-production"
+    return "spaceflow-dev-secret-key-change-me-before-production"
 
 
 class Settings(BaseSettings):
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173,http://127.0.0.1:3000"
     )
 
-    APP_NAME: str = "SpaceFlo API"
+    APP_NAME: str = "SpaceFlow API"
     APP_VERSION: str = "1.0.0"
 
     model_config = SettingsConfigDict(
