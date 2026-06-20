@@ -1,0 +1,35 @@
+**SpaceFlo Color Pack**
+
+| Token | Hex | Use |
+|-------|-----|-----|
+| `--bg-primary` | `#ffffff` | Page background, card fills |
+| `--bg-secondary` | `#f4f9fd` | Section alternates, sidebar |
+| `--bg-tertiary` | `#e8f2fb` | Input fields, subtle panels |
+| `--surface` | `#ffffff` | Cards, modals, dropdowns |
+| `--surface-hover` | `#f0f7fc` | Card hover, row hover |
+| `--border` | `#d4e5f2` | Card borders, dividers |
+| `--border-light` | `#e6eff7` | Subtle separators |
+| `--nav-bg` | `rgba(255,255,255,0.85)` | Navbar (glassmorphism) |
+| `--nav-border` | `rgba(212,229,242,0.6)` | Navbar bottom border |
+| `--hero-gradient-start` | `#ffffff` | Hero top |
+| `--hero-gradient-end` | `#cce8f8` | Hero bottom |
+| `--accent` | `#3da9f5` | Primary buttons, links, active states |
+| `--accent-hover` | `#2b96e0` | Button hover |
+| `--accent-light` | `#e0f0fd` | Badge bg, tag bg, accent tint |
+| `--accent-dark` | `#1a7cc7` | Pressed state |
+| `--text-primary` | `#12263a` | Headings, body text |
+| `--text-secondary` | `#4a6a85` | Subtext, labels, captions |
+| `--text-tertiary` | `#7a9bb5` | Placeholders, muted |
+| `--text-on-accent` | `#ffffff` | Text on accent buttons |
+| `--success` | `#2ec98a` | Success states, checkmarks |
+| `--success-light` | `#e4f9f0` | Success badge bg |
+| `--warning` | `#f5a623` | Warning states |
+| `--warning-light` | `#fef4e0` | Warning badge bg |
+| `--error` | `#f04848` | Error states, destructive |
+| `--error-light` | `#fde8e8` | Error badge bg |
+| `--shadow-sm` | `rgba(18,38,58,0.05)` | Card shadow |
+| `--shadow-md` | `rgba(18,38,58,0.08)` | Dropdown shadow |
+| `--shadow-lg` | `rgba(18,38,58,0.12)` | Modal shadow |
+| `--overlay` | `rgba(18,38,58,0.35)` | Modal backdrop |
+| `--gradient-blue` | `#95ccf0` | Bottom gradient blobs |
+| `--gradient-mid` | `#cce8f8` | Mid gradient transition |

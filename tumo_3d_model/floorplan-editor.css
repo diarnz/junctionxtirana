@@ -1,0 +1,603 @@
+/* ═══════════════════════════════════════════════════════════════
+   TUMO — Fullscreen 2D Floor Plan Editor
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --fp-accent: #5b9cf5;
+  --fp-bg: #07070b;
+  --fp-surface: #0f0f15;
+  --fp-panel: #12121a;
+  --fp-border: rgba(255, 255, 255, 0.07);
+  --fp-text: rgba(255, 255, 255, 0.92);
+  --fp-muted: rgba(255, 255, 255, 0.42);
+  --fp-topbar-h: 56px;
+  --fp-footbar-h: 36px;
+  --fp-panel-w: 260px;
+}
+
+body.fp-editor-open {
+  overflow: hidden;
+}
+
+body.fp-editor-open #canvas-container,
+body.fp-editor-open #ui,
+body.fp-editor-open #nav-hint,
+body.fp-editor-open #controls-hint,
+body.fp-editor-open #furniture-panel,
+body.fp-editor-open #room-label,
+body.fp-editor-open #placement-crosshair {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.floorplan-modal.visible .fp-app {
+  animation: fp-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fp-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Fullscreen shell — overrides legacy modal styles in style.css */
+.floorplan-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  padding: 0 !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  background: var(--fp-bg);
+}
+
+.floorplan-modal.visible {
+  display: flex !important;
+}
+
+.floorplan-modal .floorplan-backdrop {
+  display: none;
+}
+
+.fp-app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--fp-accent) 12%, transparent), transparent),
+    var(--fp-bg);
+  color: var(--fp-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ─── Top bar ─── */
+.fp-topbar {
+  flex-shrink: 0;
+  height: var(--fp-topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--fp-border);
+  background: rgba(12, 12, 18, 0.85);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.fp-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.fp-brand-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--fp-accent), color-mix(in srgb, var(--fp-accent) 60%, #000));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--fp-accent) 35%, transparent);
+}
+
+.fp-brand-text h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.fp-meta {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: var(--fp-muted);
+  letter-spacing: 0.03em;
+}
+
+.fp-toolbar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fp-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--fp-border);
+}
+
+.fp-tool-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fp-muted);
+  padding: 0 6px 0 4px;
+  user-select: none;
+}
+
+.fp-tool-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--fp-border);
+  margin: 0 6px;
+}
+
+.fp-tool {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fp-tool:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.fp-tool.active {
+  background: color-mix(in srgb, var(--fp-accent) 22%, transparent);
+  color: color-mix(in srgb, var(--fp-accent) 80%, #fff);
+}
+
+.fp-topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  justify-content: flex-end;
+}
+
+.fp-btn {
+  padding: 8px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--fp-border);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.fp-btn:active {
+  transform: scale(0.98);
+}
+
+.fp-btn--accent {
+  background: linear-gradient(135deg, var(--fp-accent), color-mix(in srgb, var(--fp-accent) 75%, #2244aa));
+  border-color: color-mix(in srgb, var(--fp-accent) 50%, transparent);
+  color: #fff;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--fp-accent) 30%, transparent);
+}
+
+.fp-btn--accent:hover {
+  filter: brightness(1.08);
+}
+
+.fp-btn--ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.fp-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* ─── Main layout ─── */
+.fp-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--fp-panel-w) 1fr var(--fp-panel-w);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fp-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--fp-panel);
+  border-color: var(--fp-border);
+}
+
+.fp-panel--catalog {
+  border-right: 1px solid var(--fp-border);
+}
+
+.fp-panel--props {
+  border-left: 1px solid var(--fp-border);
+}
+
+.fp-panel-head {
+  flex-shrink: 0;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--fp-border);
+}
+
+.fp-panel-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fp-text);
+}
+
+.fp-panel-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--fp-muted);
+}
+
+/* ─── Catalog grid ─── */
+.fp-catalog {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.fp-catalog-section {
+  margin-bottom: 16px;
+}
+
+.fp-catalog-section-title {
+  margin: 0 0 8px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fp-muted);
+}
+
+.fp-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.fp-palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--fp-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--fp-text);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.fp-palette-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.fp-palette-item.active {
+  border-color: color-mix(in srgb, var(--fp-accent) 55%, transparent);
+  background: color-mix(in srgb, var(--fp-accent) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fp-accent) 25%, transparent);
+}
+
+.fp-palette-thumb {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35) center / 78% no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fp-palette-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ─── Viewport / canvas ─── */
+.fp-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 23px,
+      rgba(255, 255, 255, 0.025) 23px,
+      rgba(255, 255, 255, 0.025) 24px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 23px,
+      rgba(255, 255, 255, 0.025) 23px,
+      rgba(255, 255, 255, 0.025) 24px
+    ),
+    var(--fp-surface);
+}
+
+#fp-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+
+#fp-canvas.fp-placing {
+  cursor: crosshair;
+}
+
+.fp-viewport-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.fp-viewport-hud .fp-chip:last-child {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.fp-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(8, 8, 14, 0.88);
+  border: 1px solid var(--fp-border);
+  backdrop-filter: blur(8px);
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.04em;
+}
+
+.fp-chip--status {
+  border-radius: 10px;
+  max-width: min(420px, 90%);
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+/* ─── Inspector ─── */
+.fp-inspector-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.fp-inspector-empty {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fp-muted);
+}
+
+.fp-inspector-hint {
+  margin: 12px 0 0;
+  font-size: 10px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.fp-inspector-hint kbd,
+.fp-shortcut kbd {
+  display: inline-block;
+  padding: 2px 5px;
+  margin-right: 2px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.fp-inspector-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.fp-inspector-props {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  margin: 0 0 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--fp-border);
+  font-size: 11px;
+}
+
+.fp-inspector-props dt {
+  color: var(--fp-muted);
+  font-weight: 600;
+}
+
+.fp-inspector-props dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.fp-inspector-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 9px;
+  border: 1px solid var(--fp-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fp-inspector-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fp-inspector-btn--danger {
+  border-color: rgba(255, 100, 90, 0.3);
+  color: #ff9a90;
+}
+
+.fp-object-list {
+  margin-bottom: 14px;
+}
+
+.fp-object-list-title {
+  margin: 0 0 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fp-muted);
+}
+
+.fp-object-row {
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.82);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.fp-object-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.fp-object-row.active {
+  background: color-mix(in srgb, var(--fp-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--fp-accent) 40%, transparent);
+  color: #fff;
+}
+
+/* ─── Footer shortcuts ─── */
+.fp-footbar {
+  flex-shrink: 0;
+  height: var(--fp-footbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 0 16px;
+  border-top: 1px solid var(--fp-border);
+  background: rgba(10, 10, 14, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.fp-shortcut {
+  font-size: 10px;
+  color: var(--fp-muted);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1100px) {
+  :root {
+    --fp-panel-w: 220px;
+  }
+  .fp-tool-label { display: none; }
+  .fp-brand { min-width: 140px; }
+  .fp-topbar-end { min-width: auto; }
+}
+
+@media (max-width: 860px) {
+  .fp-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto auto;
+  }
+  .fp-panel--catalog {
+    order: 2;
+    border-right: none;
+    border-top: 1px solid var(--fp-border);
+    max-height: 160px;
+  }
+  .fp-panel--props {
+    order: 3;
+    border-left: none;
+    border-top: 1px solid var(--fp-border);
+    max-height: 180px;
+  }
+  .fp-viewport { order: 1; }
+  .fp-catalog-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .fp-palette-label { display: none; }
+  .fp-toolbar { display: none; }
+  .fp-footbar { justify-content: flex-start; overflow-x: auto; }
+}
