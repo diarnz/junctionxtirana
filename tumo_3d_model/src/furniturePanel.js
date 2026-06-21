@@ -44,7 +44,7 @@ export function setTemplateSelectHandler(fn) {
 }
 
 export function setFurnishSection(section) {
-  if (section !== 'ai' && section !== 'templates' && section !== 'customize') return;
+  if (section !== 'ai' && section !== 'templates' && section !== 'customize' && section !== 'booking') return;
   activeSection = section;
   updateSections();
   updateSectionViews();
@@ -66,11 +66,32 @@ function updateSections() {
 }
 
 function updateSectionViews() {
-  document.getElementById('furnish-section-ai')?.classList.toggle('hidden', activeSection !== 'ai');
+  const panel = document.getElementById('furniture-panel');
+  const aiDock = document.getElementById('ai-dock');
+  const sectionNav = document.getElementById('furnish-section-nav');
+  const headerRow = document.querySelector('.furnish-header-row');
+
+  document.getElementById('furnish-section-booking')?.classList.toggle('hidden', activeSection !== 'booking');
   document.getElementById('furnish-section-templates')?.classList.toggle('hidden', activeSection !== 'templates');
   document.getElementById('furnish-section-customize')?.classList.toggle('hidden', activeSection !== 'customize');
   document.getElementById('furnish-filter-tabs')?.classList.toggle('hidden', activeSection !== 'customize');
-  document.getElementById('furniture-panel')?.classList.toggle('furnish-mode-ai', activeSection === 'ai');
+
+  const isAi = activeSection === 'ai';
+  aiDock?.classList.toggle('hidden', !isAi);
+  panel?.classList.toggle('furnish-mode-ai', isAi);
+  panel?.classList.toggle('furnish-mode-catalog', !isAi);
+
+  if (sectionNav && headerRow) {
+    const body = panel?.querySelector('.furnish-body');
+    if (isAi) {
+      if (body && aiDock) body.insertBefore(sectionNav, aiDock);
+      sectionNav.classList.add('furnish-sections--floating');
+    } else {
+      headerRow.appendChild(sectionNav);
+      sectionNav.classList.remove('furnish-sections--floating');
+    }
+  }
+
   document.body.classList.toggle('furnish-mode-build', activeSection === 'customize');
 }
 

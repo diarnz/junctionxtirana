@@ -4,13 +4,15 @@ const SEARCH_ICON = `
     <path d="M20 20l-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </svg>`;
 
-const GOOEY_FILTER = `
-  <svg class="ai-search-bar__gooey-def" aria-hidden="true">
+const GLASS_FILTER = `
+  <svg class="ai-search-bar__filter-def" aria-hidden="true">
     <defs>
-      <filter id="ai-gooey-effect">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur"/>
-        <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" result="goo"/>
-        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      <filter id="container-glass" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="0.05 0.05" numOctaves="1" seed="1" result="turbulence"/>
+        <feGaussianBlur in="turbulence" stdDeviation="2" result="blurredNoise"/>
+        <feDisplacementMap in="SourceGraphic" in2="blurredNoise" scale="70" xChannelSelector="R" yChannelSelector="B" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="4" result="finalBlur"/>
+        <feComposite in="finalBlur" in2="finalBlur" operator="over"/>
       </filter>
     </defs>
   </svg>`;
@@ -23,44 +25,6 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
-function isUnsupportedBrowser() {
-  const ua = navigator.userAgent.toLowerCase();
-  const isSafari = ua.includes('safari') && !ua.includes('chrome') && !ua.includes('chromium');
-  const isChromeOnIos = ua.includes('crios');
-  return isSafari || isChromeOnIos;
-}
-
-function spawnClickParticles(container, x, y) {
-  for (let i = 0; i < 12; i += 1) {
-    const dot = document.createElement('span');
-    dot.className = 'ai-search-bar__click-particle';
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 40 + Math.random() * 80;
-    dot.style.left = `${x}px`;
-    dot.style.top = `${y}px`;
-    dot.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
-    dot.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
-    dot.style.background = `rgba(${120 + Math.floor(Math.random() * 100)}, ${80 + Math.floor(Math.random() * 120)}, 255, 0.85)`;
-    container.appendChild(dot);
-    dot.addEventListener('animationend', () => dot.remove(), { once: true });
-  }
-}
-
-function buildParticles(container, count = 14) {
-  container.innerHTML = '';
-  for (let i = 0; i < count; i += 1) {
-    const p = document.createElement('span');
-    p.className = 'ai-search-bar__particle';
-    p.style.left = `${8 + Math.random() * 84}%`;
-    p.style.top = `${10 + Math.random() * 80}%`;
-    p.style.setProperty('--dx', `${(Math.random() - 0.5) * 28}px`);
-    p.style.setProperty('--dy', `${(Math.random() - 0.5) * 28}px`);
-    p.style.animationDelay = `${Math.random() * 1.2}s`;
-    p.style.animationDuration = `${1.4 + Math.random() * 1.4}s`;
-    container.appendChild(p);
-  }
-}
-
 export function mountAiSearchBar(mountEl, options = {}) {
   const {
     placeholder = 'Design this room…',
@@ -71,15 +35,12 @@ export function mountAiSearchBar(mountEl, options = {}) {
   if (!mountEl) return null;
 
   mountEl.innerHTML = `
-    ${GOOEY_FILTER}
+    ${GLASS_FILTER}
     <form class="ai-search-bar" autocomplete="off">
-      <div class="ai-search-bar__form-inner">
-        <div class="ai-search-bar__track">
-          <div class="ai-search-bar__gradient" aria-hidden="true"></div>
-          <div class="ai-search-bar__particles-wrap" aria-hidden="true">
-            <div class="ai-search-bar__particles"></div>
-          </div>
-          <div class="ai-search-bar__click-layer" aria-hidden="true"></div>
+      <div class="ai-search-bar__shell">
+        <div class="ai-search-bar__glass-shadow" aria-hidden="true"></div>
+        <div class="ai-search-bar__glass-backdrop" aria-hidden="true"></div>
+        <div class="ai-search-bar__content">
           <div class="ai-search-bar__icon-wrap">${SEARCH_ICON}</div>
           <input
             type="text"
@@ -94,33 +55,27 @@ export function mountAiSearchBar(mountEl, options = {}) {
     </form>`;
 
   const form = mountEl.querySelector('.ai-search-bar');
-  const formInner = mountEl.querySelector('.ai-search-bar__form-inner');
-  const track = mountEl.querySelector('.ai-search-bar__track');
+  const shell = mountEl.querySelector('.ai-search-bar__shell');
+  const backdrop = mountEl.querySelector('.ai-search-bar__glass-backdrop');
   const input = mountEl.querySelector('.ai-search-bar__input');
   const submitBtn = mountEl.querySelector('.ai-search-bar__submit');
-  const particlesWrap = mountEl.querySelector('.ai-search-bar__particles-wrap');
-  const particlesHost = mountEl.querySelector('.ai-search-bar__particles');
-  const clickLayer = mountEl.querySelector('.ai-search-bar__click-layer');
   const iconWrap = mountEl.querySelector('.ai-search-bar__icon-wrap');
 
-  if (isUnsupportedBrowser()) {
-    particlesWrap.style.filter = 'none';
-  } else {
-    particlesWrap.style.filter = 'url(#ai-gooey-effect)';
+  if (backdrop) {
+    backdrop.style.backdropFilter = 'blur(14px) saturate(1.35)';
+    backdrop.style.webkitBackdropFilter = 'blur(14px) saturate(1.35)';
+    try {
+      backdrop.style.backdropFilter = 'url("#container-glass") blur(10px) saturate(1.25)';
+    } catch {
+      // Keep blur fallback above.
+    }
   }
 
   let blurTimer = null;
 
   function setFocused(focused) {
     form.classList.toggle('is-focused', focused);
-    formInner.classList.toggle('is-focused', focused);
-    track.classList.toggle('is-focused', focused);
-    if (focused) {
-      buildParticles(particlesHost);
-      particlesWrap.hidden = false;
-    } else {
-      particlesWrap.hidden = true;
-    }
+    shell.classList.toggle('is-focused', focused);
   }
 
   function setDisabled(disabled) {
@@ -160,14 +115,7 @@ export function mountAiSearchBar(mountEl, options = {}) {
   });
 
   input.addEventListener('pointerdown', (e) => e.stopPropagation());
-
-  track.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    const rect = track.getBoundingClientRect();
-    spawnClickParticles(clickLayer, e.clientX - rect.left, e.clientY - rect.top);
-    track.classList.add('is-clicked');
-    setTimeout(() => track.classList.remove('is-clicked'), 700);
-  });
+  shell.addEventListener('pointerdown', (e) => e.stopPropagation());
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();

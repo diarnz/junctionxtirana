@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import RequestCard from '@/components/requests/RequestCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useRequestsStore } from '@/stores/requests'
 
 const requests = useRequestsStore()
@@ -39,13 +40,17 @@ onMounted(load)
 </script>
 
 <template>
-  <section style="display: grid; gap: var(--space-5);">
-    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4);">
-      <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+  <section class="admin-page">
+    <p class="admin-page-intro">
+      Filter and review incoming event requests from clients and the 3D booking flow.
+    </p>
+
+    <div class="page-toolbar">
+      <div class="filter-pills">
         <button
           type="button"
-          class="button"
-          :class="selectedStatus === '' ? 'button-primary' : 'button-secondary'"
+          class="filter-pill"
+          :class="{ 'is-active': selectedStatus === '' }"
           @click="selectedStatus = ''"
         >
           All
@@ -54,8 +59,8 @@ onMounted(load)
           v-for="status in ['submitted', 'under_review', 'quotation_sent', 'approved', 'completed', 'rejected']"
           :key="status"
           type="button"
-          class="button"
-          :class="selectedStatus === status ? 'button-primary' : 'button-secondary'"
+          class="filter-pill text-capitalize"
+          :class="{ 'is-active': selectedStatus === status }"
           @click="selectedStatus = status"
         >
           {{ status.replace('_', ' ') }}
@@ -66,19 +71,18 @@ onMounted(load)
         v-model="search"
         class="input"
         placeholder="Search by title, client, or venue..."
-        style="max-width: 320px;"
       />
     </div>
 
-    <div v-if="requests.loading" class="empty-state">
-      <div class="spinner" />
-    </div>
+    <EmptyState v-if="requests.loading" title="Loading requests…" loading />
 
-    <div v-else-if="!filteredRequests.length" class="empty-state">
-      No requests match the current filters.
-    </div>
+    <EmptyState
+      v-else-if="!filteredRequests.length"
+      title="No matching requests"
+      message="No requests match the current filters."
+    />
 
-    <div v-else style="display: grid; gap: var(--space-3);">
+    <div v-else class="admin-section">
       <RequestCard
         v-for="item in filteredRequests"
         :key="item.id"

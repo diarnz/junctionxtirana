@@ -10,6 +10,7 @@ from app.config import settings
 from app.routers.ai import router as ai_router
 from app.routers.assets import router as assets_router
 from app.routers.auth import router as auth_router
+from app.routers.bookings import router as bookings_router
 from app.routers.quotations import router as quotations_router
 from app.routers.requests import router as requests_router
 from app.routers.reservations import router as reservations_router
@@ -66,6 +67,7 @@ prefix = "/api/v1"
 app.include_router(auth_router, prefix=f"{prefix}/auth", tags=["Auth"])
 app.include_router(venues_router, prefix=f"{prefix}/venues", tags=["Venues"])
 app.include_router(requests_router, prefix=f"{prefix}/requests", tags=["Requests"])
+app.include_router(bookings_router, prefix=f"{prefix}/bookings", tags=["Bookings"])
 app.include_router(assets_router, prefix=f"{prefix}/assets", tags=["Assets"])
 app.include_router(reservations_router, prefix=f"{prefix}/reservations", tags=["Reservations"])
 app.include_router(quotations_router, prefix=f"{prefix}/quotations", tags=["Quotations"])

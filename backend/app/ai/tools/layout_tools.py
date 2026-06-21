@@ -1221,6 +1221,124 @@ def _layout_from_style(room_dims: dict[str, float], spec: dict[str, Any], avail:
     return _layout_conference(room_dims, spec, avail)
 
 
+def _is_clear_room_prompt(text: str) -> bool:
+    text = text.lower()
+    return _flag_any(
+        text,
+        [
+            "clear the room",
+            "clear everything",
+            "clear it",
+            "clear room",
+            "keep it clear",
+            "keep clear",
+            "keep the room clear",
+            "empty the room",
+            "empty room",
+            "remove everything",
+            "remove all",
+            "delete everything",
+            "no furniture",
+            "without furniture",
+            "remove these chairs",
+            "remove the chairs",
+            "remove chairs",
+            "remove all chairs",
+            "take out the chairs",
+            "get rid of",
+            "strip the room",
+            "bare room",
+        ],
+    )
+
+
+def _is_removal_prompt(text: str) -> bool:
+    text = text.lower()
+    return _flag_any(
+        text,
+        [
+            "remove ",
+            "delete ",
+            "take out ",
+            "get rid of ",
+            "strip ",
+            "without ",
+            "no more ",
+        ],
+    )
+
+
+def _has_layout_generation_intent(text: str) -> bool:
+    text = text.lower()
+    if _is_clear_room_prompt(text):
+        return False
+    if _detect_layout_style(text) != "conference":
+        return True
+    return _flag_any(
+        text,
+        [
+            "conference",
+            "meeting",
+            "office",
+            "workshop",
+            "classroom",
+            "hackathon",
+            "auditorium",
+            "boardroom",
+            "banquet",
+            "exhibition",
+            "studio",
+            "chair",
+            "chairs",
+            "seat",
+            "seats",
+            "desk",
+            "desks",
+            "table",
+            "tables",
+            "layout",
+            "setup",
+            "set up",
+            "arrange",
+            "furnish",
+            "place ",
+            "add ",
+            "create ",
+            "build ",
+            "design ",
+            "for ",
+            "people",
+            "attendees",
+            "guests",
+            "workstation",
+            "pod",
+            "pods",
+            "tv",
+            "screen",
+            "whiteboard",
+            "speaker",
+        ],
+    ) or _extract_number_near_keyword(
+        text,
+        ["person", "people", "attendee", "attendees", "seat", "seats", "guest", "guests"],
+    ) is not None
+
+
+def _empty_layout_result(*, message: str | None = None) -> dict[str, Any]:
+    return {
+        "items": [],
+        "placed_seats": 0,
+        "limitations": [],
+        "layout_style": "empty",
+        "models_used": [],
+        "added_models": [],
+        "removed_models": ["all furniture"],
+        "modified": True,
+        "cleared": True,
+        "status_message": message or "Room cleared.",
+    }
+
+
 def _is_modification_prompt(text: str) -> bool:
     text = text.lower()
     return _flag_any(
@@ -1290,13 +1408,15 @@ def _should_modify_existing_layout(
     existing_items: list[dict[str, Any]],
     previous_style: str | None = None,
 ) -> bool:
-    if not existing_items or _is_full_redesign_prompt(prompt):
+    if not existing_items or _is_full_redesign_prompt(prompt) or _is_clear_room_prompt(prompt):
         return False
+    if _is_removal_prompt(prompt):
+        return True
     if _is_modification_prompt(prompt):
         return True
     if _has_additive_intent(prompt):
         return True
-    if previous_style and len(prompt.split()) <= 16:
+    if previous_style and len(prompt.split()) <= 16 and _has_layout_generation_intent(prompt):
         return True
     return False
 
@@ -1391,17 +1511,54 @@ def _modify_existing_layout(
     previous_style: str | None = None,
 ) -> dict[str, Any]:
     text = prompt.lower()
+    if _is_clear_room_prompt(text):
+        return _empty_layout_result()
+
     items = [dict(item) for item in existing_items]
     limitations: list[str] = []
     added: list[str] = []
+    removed: list[str] = []
     style = previous_style or _infer_layout_style_from_items(items)
+
+    chair_keys = {"simple_chair", "office_chair"}
+    table_keys = {"simple_table", "office_table"}
+    wants_remove_chairs = _flag_any(
+        text,
+        ["remove chair", "remove chairs", "remove seat", "remove seats", "no chairs", "without chairs"],
+    )
+    wants_remove_tables = _flag_any(
+        text,
+        ["remove table", "remove tables", "remove desk", "remove desks", "no tables", "without tables"],
+    )
+
+    if wants_remove_chairs:
+        before = len(items)
+        items = [item for item in items if item.get("modelKey") not in chair_keys]
+        if len(items) < before:
+            removed.append("chairs")
+
+    if wants_remove_tables:
+        before = len(items)
+        items = [item for item in items if item.get("modelKey") not in table_keys]
+        if len(items) < before:
+            removed.append("tables")
+
+    if removed:
+        return {
+            "items": items,
+            "placed_seats": _count_seats(items),
+            "limitations": limitations,
+            "layout_style": "empty" if not items else style,
+            "models_used": sorted({item["modelKey"] for item in items}),
+            "added_models": added,
+            "removed_models": removed,
+            "modified": True,
+        }
 
     wants_tv = _flag_any(text, ["tv", "screen", "display", "monitor wall", "flat screen"])
     wants_whiteboard = _flag_any(text, ["whiteboard", "white board", "flipchart"])
     wants_speaker = _flag_any(text, ["speaker", "sound", "audio"])
     wants_mic = _flag_any(text, ["mic", "microphone"])
-    wants_chair = _flag_any(text, ["chair", "seat"])
-    wants_table = _flag_any(text, ["table", "desk"])
 
     if wants_tv and avail.get("wall_flat_tv", 0) > 0:
         wall = "back"
@@ -1458,20 +1615,21 @@ def _modify_existing_layout(
                 items.append(planner.items[-1])
                 added.append("microphone_stand")
 
-    if not added:
+    if not added and not removed:
         limitations.append(
             "Could not apply that change on top of the current layout. Try being specific, e.g. "
-            "'add a TV on the left wall'."
+            "'add a TV on the left wall' or 'remove all chairs'."
         )
 
     return {
         "items": items,
         "placed_seats": _count_seats(items),
         "limitations": limitations,
-        "layout_style": style,
+        "layout_style": "empty" if not items else style,
         "models_used": sorted({item["modelKey"] for item in items}),
         "added_models": added,
-        "modified": bool(added),
+        "removed_models": removed,
+        "modified": bool(added or removed),
     }
 
 
@@ -1561,7 +1719,18 @@ async def generate_and_apply_layout(args: dict[str, Any], db: AsyncSession) -> d
 
     existing_items = args.get("existing_items") or []
     previous_style = args.get("previous_layout_style")
-    if _should_modify_existing_layout(
+
+    if _is_clear_room_prompt(prompt):
+        result = _empty_layout_result()
+    elif not existing_items and not _has_layout_generation_intent(prompt):
+        return {
+            "error": (
+                "Tell me what you'd like in this room — e.g. 'conference for 20', "
+                "'office desks', 'add a TV', or 'clear the room'."
+            ),
+            "needs_prompt": True,
+        }
+    elif _should_modify_existing_layout(
         prompt, existing_items, str(previous_style) if previous_style else None
     ):
         result = _modify_existing_layout(
@@ -1622,11 +1791,14 @@ async def generate_and_apply_layout(args: dict[str, Any], db: AsyncSession) -> d
         "item_count": len(items),
         "placed_seats": result["placed_seats"],
         "limitations": limitations,
-        "event_type": spec["event_type"],
+        "event_type": spec["event_type"] if not result.get("cleared") else None,
         "layout_style": result["layout_style"],
         "models_used": result.get("models_used", []),
         "added_models": result.get("added_models", []),
+        "removed_models": result.get("removed_models", []),
         "modified": bool(result.get("modified")),
+        "cleared": bool(result.get("cleared")),
+        "status_message": result.get("status_message"),
         "model_availability": availability,
     }
 

@@ -896,6 +896,15 @@ async def get_current_layout(three_d_room_id: str, db: AsyncSession) -> RoomLayo
     return await db.scalar(stmt)
 
 
+async def get_layout_for_request(request_id: UUID, db: AsyncSession) -> RoomLayout | None:
+    stmt = (
+        select(RoomLayout)
+        .where(RoomLayout.event_request_id == request_id)
+        .order_by(desc(RoomLayout.created_at))
+    )
+    return await db.scalar(stmt)
+
+
 async def deactivate_current_layouts(venue_id: UUID, db: AsyncSession) -> None:
     layouts = await list_layouts_for_venue(venue_id, db)
     for layout in layouts:

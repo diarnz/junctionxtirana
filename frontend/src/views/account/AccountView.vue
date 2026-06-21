@@ -3,7 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import AppNav from '@/components/layout/AppNav.vue'
-import RequestCard from '@/components/requests/RequestCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
+import ThreeDBookingLink from '@/components/ui/ThreeDBookingLink.vue'
+import RecentRequestDisplayCards from '@/components/requests/RecentRequestDisplayCards.vue'
 import { friendlyError, requestsApi } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import type { EventRequestSummary } from '@/types'
@@ -66,54 +69,37 @@ async function saveProfile() {
 </script>
 
 <template>
-  <div>
+  <div class="public-page page-gradient">
     <AppNav />
 
-    <section style="padding: var(--space-10) 0 var(--space-12);">
-      <div class="page-shell" style="display: grid; gap: var(--space-8);">
-        <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--space-4); flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: var(--space-4);">
-            <div
-              style="
-                width: 64px;
-                height: 64px;
-                border-radius: var(--radius-full);
-                background: var(--accent-light);
-                color: var(--accent-dark);
-                display: grid;
-                place-items: center;
-                font-weight: 700;
-                font-size: 1.2rem;
-              "
-            >
-              {{ auth.initials }}
-            </div>
-            <div>
-              <h1 style="margin: 0 0 0.35rem;">{{ auth.displayName }}</h1>
-              <p style="margin: 0; color: var(--text-secondary);">{{ auth.user?.email }}</p>
-              <span class="badge badge-info" style="margin-top: var(--space-2); display: inline-block;">
-                {{ roleLabel }}
-              </span>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+    <section class="public-band">
+      <div class="page-shell page-stack">
+        <PageHeader
+          :title="auth.displayName"
+          :copy="auth.user?.email"
+          :eyebrow="roleLabel"
+        >
+          <template #icon>
+            <span class="account-avatar">{{ auth.initials }}</span>
+          </template>
+          <template #actions>
             <RouterLink v-if="auth.isStaff" to="/admin/dashboard" class="button button-primary">
               Admin dashboard
             </RouterLink>
             <RouterLink v-else to="/my-requests" class="button button-primary">
               My requests
             </RouterLink>
-            <RouterLink to="/book" class="button button-secondary">
+            <ThreeDBookingLink class="button button-secondary">
               Book a space
-            </RouterLink>
-          </div>
-        </div>
+            </ThreeDBookingLink>
+          </template>
+        </PageHeader>
 
         <div class="split-grid two-col">
-          <section class="card" style="padding: var(--space-6);">
-            <h2 style="margin: 0 0 var(--space-5);">Profile</h2>
-            <form style="display: grid; gap: var(--space-4);" @submit.prevent="saveProfile">
+          <!-- PROFILE FORM -->
+          <section class="card account-card fade-up-1">
+            <h2 class="account-card__title">Profile</h2>
+            <form class="account-form" @submit.prevent="saveProfile">
               <label class="field">
                 <span class="field-label">Full name</span>
                 <input v-model="form.full_name" class="input" required />
@@ -135,19 +121,20 @@ async function saveProfile() {
                 <input v-model="form.organization" class="input" />
               </label>
 
-              <div v-if="profileMessage" class="card" style="padding: var(--space-3); background: var(--bg-secondary);">
+              <div v-if="profileMessage" class="account-msg">
                 {{ profileMessage }}
               </div>
 
-              <button type="submit" class="button button-primary" :disabled="saving">
-                {{ saving ? 'Saving...' : 'Save profile' }}
+              <button type="submit" class="button button-primary button-block" :disabled="saving">
+                {{ saving ? 'Saving…' : 'Save profile' }}
               </button>
             </form>
           </section>
 
-          <section class="card" style="padding: var(--space-6);">
-            <h2 style="margin: 0 0 var(--space-4);">Your SpaceFlow access</h2>
-            <ul style="margin: 0; padding-left: 1.1rem; color: var(--text-secondary); display: grid; gap: var(--space-3);">
+          <!-- ACCESS -->
+          <section class="card account-card fade-up-2">
+            <h2 class="account-card__title">Your SpaceFlow access</h2>
+            <ul class="access-list">
               <li v-if="auth.isStaff">Review and approve incoming event requests.</li>
               <li v-if="auth.isStaff">Manage inventory, quotations, tasks, and 3D layouts.</li>
               <li v-if="!auth.isStaff">Submit and track event requests for Pyramid spaces.</li>
@@ -155,41 +142,112 @@ async function saveProfile() {
               <li>Sign in with email/password or Google (when enabled in Supabase).</li>
             </ul>
 
-            <div style="margin-top: var(--space-6); display: grid; gap: var(--space-3);">
-              <RouterLink to="/venues" class="button button-secondary">Browse venues</RouterLink>
-              <button type="button" class="button button-secondary" @click="auth.logout(); $router.push('/login')">
+            <div class="access-actions">
+              <RouterLink to="/venues" class="button button-secondary button-block">Browse venues</RouterLink>
+              <button type="button" class="button button-ghost button-block" @click="auth.logout(); $router.push('/login')">
                 Sign out
               </button>
             </div>
           </section>
         </div>
 
-        <section v-if="!auth.isStaff">
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);">
-            <h2 style="margin: 0;">Recent requests</h2>
-            <RouterLink to="/my-requests" style="color: var(--accent); font-weight: 600;">
+        <!-- RECENT REQUESTS -->
+        <section v-if="!auth.isStaff" class="fade-up-2">
+          <div class="account-band-head">
+            <h2 class="account-band-head__title">Recent requests</h2>
+            <RouterLink to="/my-requests" class="link-arrow">
               View all
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
             </RouterLink>
           </div>
 
-          <div v-if="loadingRequests" style="color: var(--text-secondary);">Loading requests...</div>
-          <div v-else-if="!recentRequests.length" class="card" style="padding: var(--space-6); text-align: center;">
-            <p style="margin: 0 0 var(--space-4); color: var(--text-secondary);">
-              You have not submitted any event requests yet.
-            </p>
-            <RouterLink to="/book" class="button button-primary">Submit your first request</RouterLink>
-          </div>
-          <div v-else class="split-grid three-col">
-            <RequestCard
-              v-for="request in recentRequests"
-              :key="request.id"
-              :request="request"
-              :detail-path="`/my-requests/${request.id}`"
-              :show-client="false"
-            />
+          <EmptyState v-if="loadingRequests" title="Loading requests…" loading />
+
+          <EmptyState
+            v-else-if="!recentRequests.length"
+            title="No requests yet"
+            message="You have not submitted any event requests yet."
+          >
+            <ThreeDBookingLink class="button button-primary">Submit your first request</ThreeDBookingLink>
+          </EmptyState>
+
+          <div v-else class="display-cards-section">
+            <RecentRequestDisplayCards :requests="recentRequests" />
           </div>
         </section>
       </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+:deep(.page-header__icon) {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.account-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: var(--accent-gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  box-shadow: var(--accent-glow);
+}
+
+.account-card {
+  padding: var(--space-6);
+}
+.account-card__title {
+  margin: 0 0 var(--space-5);
+  font-size: 1.25rem;
+}
+.account-form {
+  display: grid;
+  gap: var(--space-4);
+}
+.account-msg {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--success-light);
+  border: 1px solid rgba(46, 201, 138, 0.3);
+  color: #18996a;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.access-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--text-secondary);
+  display: grid;
+  gap: var(--space-3);
+}
+.access-list li::marker {
+  color: var(--accent);
+}
+.access-actions {
+  margin-top: var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-band-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.account-band-head__title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+</style>

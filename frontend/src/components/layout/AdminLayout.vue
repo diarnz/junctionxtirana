@@ -40,27 +40,14 @@ onMounted(() => {
 
     <div class="admin-content-shell">
       <header class="admin-topbar">
-        <div>
-          <div style="font-size: 1.15rem; font-weight: 700;">{{ pageTitle }}</div>
-          <div style="color: var(--text-tertiary); font-size: 0.85rem;">
-            Pyramid of Tirana operations console
-          </div>
+        <div class="topbar__title">
+          <h1>{{ pageTitle }}</h1>
+          <span>Pyramid of Tirana · operations console</span>
         </div>
 
-        <div style="display: inline-flex; align-items: center; gap: var(--space-3);">
-          <div
-            class="badge"
-            :class="websocket.connected ? 'badge-success' : 'badge-warning'"
-          >
-            <span
-              style="
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                background: currentColor;
-                display: inline-block;
-              "
-            />
+        <div class="topbar__actions">
+          <div class="badge" :class="websocket.connected ? 'badge-success' : 'badge-warning'">
+            <span class="topbar__dot" />
             {{ websocket.connected ? 'Live' : 'Reconnecting' }}
           </div>
 
@@ -69,7 +56,10 @@ onMounted(() => {
             class="button button-primary"
             @click="ai.setPanelState(true, ai.agentType, ai.context)"
           >
-            ✦ AI Copilot
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m12 3-1.9 5.8H4.5L10 14.2 8.1 20 12 16.8 15.9 20 14 14.2l5.5-5.4h-5.6z" />
+            </svg>
+            AI Copilot
           </button>
         </div>
       </header>
@@ -82,3 +72,32 @@ onMounted(() => {
     <AiChatPanel />
   </div>
 </template>
+
+<style scoped>
+.topbar__title h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.topbar__title span {
+  color: var(--text-tertiary);
+  font-size: 0.84rem;
+}
+
+.topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.topbar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+</style>

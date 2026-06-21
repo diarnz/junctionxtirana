@@ -1,5 +1,25 @@
 import { MODEL_CATALOG, FURNITURE_SIZE_FACTOR, getModelRotYOffset } from './factories.js';
 import { loadTopViewImage, preloadTopViews, renderModelTopView } from './floorPlanTopView.js';
+import { previewBooking, createBooking, isBookingEnabled, getToken } from './bookingApi.js';
+import { getVenueNameForRoom, isAiSupportedRoom } from './roomVenues.js';
+
+function fmtMoney(value) {
+  const n = Number(value);
+  if (Number.isNaN(n)) return '0.00';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function elValue(id) {
+  return document.getElementById(id)?.value ?? '';
+}
 
 const GRID_STEP = 0.25;
 const MIN_ZOOM = 0.45;
@@ -156,9 +176,18 @@ export class FloorPlanEditor {
     this.accentColor = '#5b9cf5';
     this._lastZoomLabel = '';
 
-    this._bindEvents();
-    this._bindToolbar(options.root);
-    this._buildPalette(options.paletteEl);
+    this.lastPreview = null;
+    this.bookingBusy = false;
+    this.bookingSubmitted = false;
+    this.enableBooking = options.enableBooking !== false;
+    this.readOnly = options.readOnly === true;
+
+    if (!this.readOnly) {
+      this._bindEvents();
+      this._bindToolbar(options.root);
+      this._buildPalette(options.paletteEl);
+      if (this.enableBooking) this._initBooking();
+    }
     this._syncAccentColor();
     this._resize();
     preloadTopViews(Object.keys(MODEL_CATALOG)).then((loaded) => {
@@ -447,6 +476,7 @@ export class FloorPlanEditor {
       this._selectItem(item.id);
       this.placingModel = null;
       document.querySelectorAll('.fp-palette-item').forEach(b => b.classList.remove('active'));
+      this._onLayoutChanged();
       this.dirty = true;
       this._scheduleRender();
       return;
@@ -582,6 +612,7 @@ export class FloorPlanEditor {
     this.items.push(item);
     this.selectedId = item.id;
     this._updateInspector();
+    this._onLayoutChanged();
     this._scheduleRender();
     this._updateStatus(`Pasted ${MODEL_CATALOG[item.modelKey]?.label || item.modelKey}`);
   }
@@ -591,6 +622,7 @@ export class FloorPlanEditor {
     this.items = this.items.filter(it => it.id !== this.selectedId);
     this.selectedId = null;
     this._updateInspector();
+    this._onLayoutChanged();
     this._scheduleRender();
     this._updateStatus('Item removed');
   }
@@ -604,30 +636,15 @@ export class FloorPlanEditor {
     const el = document.getElementById('fp-inspector');
     if (!el) return;
 
-    const listHtml = this.items.length
-      ? `<div class="fp-object-list">
-          <p class="fp-object-list-title">In room (${this.items.length})</p>
-          ${this.items.map(item => {
-            const label = MODEL_CATALOG[item.modelKey]?.label || item.modelKey;
-            const active = item.id === this.selectedId ? ' active' : '';
-            return `<button type="button" class="fp-object-row${active}" data-select-id="${item.id}">${label}</button>`;
-          }).join('')}
-        </div>`
-      : `<p class="fp-inspector-empty">No objects yet — add from the left catalog.</p>`;
-
     const item = this.items.find(it => it.id === this.selectedId);
     if (!item) {
-      el.innerHTML = `${listHtml}
-        <p class="fp-inspector-empty">Click an object on the plan or pick from the list above.</p>`;
-      el.querySelectorAll('[data-select-id]').forEach(btn => {
-        btn.addEventListener('click', () => this._selectItem(btn.dataset.selectId));
-      });
+      el.innerHTML = `<p class="fp-inspector-empty">Click an item on the plan to nudge, rotate or remove it.</p>`;
       return;
     }
 
     const label = MODEL_CATALOG[item.modelKey]?.label || item.modelKey;
-    el.innerHTML = `${listHtml}
-      <p class="fp-inspector-title">${label}</p>
+    el.innerHTML = `
+      <p class="fp-inspector-title">${escapeHtml(label)}</p>
       <dl class="fp-inspector-props">
         <dt>X</dt><dd>${item.x.toFixed(2)} m</dd>
         <dt>Z</dt><dd>${item.z.toFixed(2)} m</dd>
@@ -636,15 +653,289 @@ export class FloorPlanEditor {
       <button type="button" class="fp-inspector-btn" data-inspect-rotate>Rotate 45°</button>
       <button type="button" class="fp-inspector-btn fp-inspector-btn--danger" data-inspect-delete>Remove</button>`;
 
-    el.querySelectorAll('[data-select-id]').forEach(btn => {
-      btn.addEventListener('click', () => this._selectItem(btn.dataset.selectId));
-    });
     el.querySelector('[data-inspect-rotate]')?.addEventListener('click', () => {
       this._rotateSelected(Math.PI / 4);
     });
     el.querySelector('[data-inspect-delete]')?.addEventListener('click', () => {
       this._deleteSelected();
     });
+  }
+
+  // ─── Inventory + Booking ──────────────────────────────────────────────────
+
+  _groupItems() {
+    const map = new Map();
+    for (const it of this.items) {
+      const label = MODEL_CATALOG[it.modelKey]?.label || it.modelKey;
+      const group = map.get(it.modelKey) || { modelKey: it.modelKey, label, count: 0 };
+      group.count += 1;
+      map.set(it.modelKey, group);
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }
+
+  _renderInventory() {
+    const el = document.getElementById('fp-inv-list');
+    if (!el) return;
+    const groups = this._groupItems();
+    if (!groups.length) {
+      el.innerHTML = `<p class="fp-inv-empty">No items yet — add furniture from the left to build your booking.</p>`;
+      return;
+    }
+
+    const priceByKey = {};
+    if (this.lastPreview?.lines) {
+      for (const line of this.lastPreview.lines) priceByKey[line.model_key] = line;
+    }
+
+    el.innerHTML = groups.map(group => {
+      const line = priceByKey[group.modelKey];
+      const meta = line
+        ? `${line.available} in stock${line.shortfall > 0 ? ` · short ${line.shortfall}` : ''}`
+        : '';
+      const price = line && line.is_inventory ? `€${fmtMoney(line.line_total)}` : '';
+      const shortClass = line && line.shortfall > 0 ? ' fp-inv-row--short' : '';
+      return `<div class="fp-inv-row${shortClass}">
+        <span class="fp-inv-qty">${group.count}×</span>
+        <span class="fp-inv-name">${escapeHtml(group.label)}</span>
+        <span class="fp-inv-meta">${meta}</span>
+        <span class="fp-inv-price">${price}</span>
+      </div>`;
+    }).join('');
+  }
+
+  _onLayoutChanged() {
+    // Counts changed → previous quote is stale.
+    this.lastPreview = null;
+    this._renderResults(null);
+    this._renderInventory();
+    if (!this.bookingSubmitted) this._bkStatus('Layout changed — recalculate for live price.', '');
+    this._updateBookingButtons();
+  }
+
+  _bkStatus(text, tone = '') {
+    const el = document.getElementById('fp-bk-status');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = `fp-bk-status${tone ? ` fp-bk-status--${tone}` : ''}`;
+  }
+
+  _setBookingBusy(next) {
+    this.bookingBusy = next;
+    const calc = document.getElementById('fp-bk-calc');
+    if (calc) {
+      calc.disabled = next;
+      calc.textContent = next ? 'Calculating…' : 'Calculate price & availability';
+    }
+    this._updateBookingButtons();
+  }
+
+  _updateBookingButtons() {
+    const submit = document.getElementById('fp-bk-submit');
+    if (!submit) return;
+    submit.disabled =
+      this.bookingBusy ||
+      !this.lastPreview ||
+      this.bookingSubmitted ||
+      !isAiSupportedRoom(this.roomData.roomId) ||
+      !getToken();
+  }
+
+  _renderResults(preview) {
+    const el = document.getElementById('fp-book-results');
+    if (!el) return;
+    if (!preview) {
+      el.innerHTML = '';
+      return;
+    }
+    const venue = preview.venue;
+    const warn = preview.has_shortfall
+      ? `<div class="fp-book-warn">Some items exceed what's free for these dates. They'll be reserved up to the remaining stock — lower quantities or change dates for a full booking.</div>`
+      : '';
+    el.innerHTML = `
+      <div class="fp-tot-row"><span>Inventory</span><span>€${fmtMoney(preview.inventory_subtotal)}</span></div>
+      <div class="fp-tot-row"><span>Venue${venue ? ` · ${fmtMoney(venue.hours)}h` : ''}</span><span>€${fmtMoney(preview.venue_subtotal)}</span></div>
+      <div class="fp-tot-row"><span>Services</span><span>€${fmtMoney(preview.services_subtotal)}</span></div>
+      <div class="fp-tot-row"><span>Tax (${Math.round(Number(preview.tax_rate) * 100)}%)</span><span>€${fmtMoney(preview.tax_amount)}</span></div>
+      <div class="fp-tot-row fp-tot-row--grand"><span>Total</span><span>€${fmtMoney(preview.total)}</span></div>
+      ${warn}`;
+  }
+
+  _bookingPayload() {
+    const start = elValue('fp-bk-start');
+    const end = elValue('fp-bk-end');
+    return {
+      three_d_room_id: this.roomData.roomId,
+      title: elValue('fp-bk-title').trim(),
+      event_type: elValue('fp-bk-type') || 'other',
+      attendee_count: Math.max(1, Number(elValue('fp-bk-attendees')) || 1),
+      requested_date: elValue('fp-bk-date'),
+      start_time: start ? `${start}:00` : '',
+      end_time: end ? `${end}:00` : '',
+      items: this.getItems(),
+    };
+  }
+
+  _validateBooking(payload) {
+    if (!payload.three_d_room_id) return 'Enter a bookable venue first.';
+    if (!payload.requested_date) return 'Choose an event date.';
+    if (!payload.start_time || !payload.end_time) return 'Choose a start and end time.';
+    if (payload.end_time <= payload.start_time) return 'End time must be after start time.';
+    if (payload.title.length < 3) return 'Add an event title (3+ characters).';
+    if (!this.items.length) return 'Place at least one item before booking.';
+    return null;
+  }
+
+  async _runPreview({ silent = false } = {}) {
+    if (!isAiSupportedRoom(this.roomData.roomId) || !isBookingEnabled()) return;
+    const payload = this._bookingPayload();
+    if (!payload.requested_date || !payload.start_time || !payload.end_time) {
+      if (!silent) this._bkStatus('Add a date and times to calculate.', 'warn');
+      return;
+    }
+    if (payload.end_time <= payload.start_time) {
+      if (!silent) this._bkStatus('End time must be after start time.', 'warn');
+      return;
+    }
+
+    this._setBookingBusy(true);
+    this._bkStatus('Checking live availability…');
+    try {
+      const preview = await previewBooking({
+        three_d_room_id: payload.three_d_room_id,
+        requested_date: payload.requested_date,
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        event_type: payload.event_type,
+        items: payload.items,
+      });
+      this.lastPreview = preview;
+      this._renderInventory();
+      this._renderResults(preview);
+      this._bkStatus(
+        preview.has_shortfall ? 'Some items are limited for these dates.' : 'Availability confirmed.',
+        preview.has_shortfall ? 'warn' : 'ok',
+      );
+    } catch (error) {
+      this.lastPreview = null;
+      this._renderResults(null);
+      this._bkStatus(error.message || 'Could not check availability.', 'error');
+    } finally {
+      this._setBookingBusy(false);
+    }
+  }
+
+  async _submitBooking() {
+    const payload = this._bookingPayload();
+    const validationError = this._validateBooking(payload);
+    if (validationError) {
+      this._bkStatus(validationError, 'warn');
+      return;
+    }
+    if (!getToken()) {
+      this._bkStatus('Sign in on SpaceFlow to book.', 'error');
+      return;
+    }
+
+    this._setBookingBusy(true);
+    this._bkStatus('Submitting your booking…');
+    try {
+      // Capture the real 2D plan now (live, focused tab → reliable) and store it
+      // with the booking so admin/client just display this exact image later.
+      try {
+        payload.plan_image = await renderPlanExportAsync(this.roomData, this.getItems());
+      } catch {
+        payload.plan_image = null;
+      }
+      const result = await createBooking(payload);
+      this.bookingSubmitted = true;
+      this.lastPreview = result.preview || this.lastPreview;
+      this._renderResults(this.lastPreview);
+      this._bkStatus('Booking submitted! Track it under My Requests.', 'ok');
+      const submit = document.getElementById('fp-bk-submit');
+      if (submit) {
+        submit.textContent = 'Booked ✓';
+        submit.disabled = true;
+      }
+      window.parent?.postMessage(
+        { type: 'BOOKING_CREATED', payload: { requestId: result?.request?.id, roomId: payload.three_d_room_id } },
+        '*',
+      );
+    } catch (error) {
+      this._bkStatus(error.message || 'Could not submit booking.', 'error');
+    } finally {
+      this.bookingBusy = false;
+      const calc = document.getElementById('fp-bk-calc');
+      if (calc) {
+        calc.disabled = false;
+        calc.textContent = 'Calculate price & availability';
+      }
+      this._updateBookingButtons();
+    }
+  }
+
+  _initBooking() {
+    const roomId = this.roomData.roomId;
+    const bookable = isAiSupportedRoom(roomId);
+    const enabled = isBookingEnabled();
+
+    const venueEl = document.getElementById('fp-bk-venue');
+    if (venueEl) {
+      const venueName = getVenueNameForRoom(roomId);
+      venueEl.textContent = venueName
+        ? `${this.roomData.name || 'Room'} · ${venueName}`
+        : (this.roomData.name || 'Venue');
+    }
+
+    this._renderInventory();
+    this._updateInspector();
+
+    const formBlock = document.getElementById('fp-book-form-block');
+    const note = document.getElementById('fp-book-note');
+
+    if (!bookable || !enabled) {
+      if (formBlock) formBlock.style.display = 'none';
+      if (note) {
+        note.style.display = '';
+        note.textContent = !bookable
+          ? 'This space is not a bookable venue — inventory shown for reference.'
+          : 'Sign in on SpaceFlow to price and book this venue.';
+      }
+      return;
+    }
+    if (note) note.style.display = 'none';
+    if (formBlock) formBlock.style.display = '';
+
+    const date = document.getElementById('fp-bk-date');
+    if (date && !date.value) {
+      date.value = new Date().toISOString().slice(0, 10);
+      date.min = date.value;
+    }
+    const title = document.getElementById('fp-bk-title');
+    if (title && !title.value) {
+      const venueName = getVenueNameForRoom(roomId);
+      title.value = venueName ? `${venueName} event` : '';
+    }
+
+    const calc = document.getElementById('fp-bk-calc');
+    const submit = document.getElementById('fp-bk-submit');
+    if (calc) calc.onclick = () => this._runPreview();
+    if (submit) submit.onclick = () => this._submitBooking();
+
+    let debounce = null;
+    ['fp-bk-type', 'fp-bk-attendees', 'fp-bk-date', 'fp-bk-start', 'fp-bk-end'].forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) {
+        node.onchange = () => {
+          if (this.bookingSubmitted) return;
+          clearTimeout(debounce);
+          debounce = setTimeout(() => this._runPreview({ silent: true }), 500);
+        };
+      }
+    });
+
+    this._bkStatus('Place furniture, then calculate your booking.', '');
+    this._updateBookingButtons();
   }
 
   getItems() {
@@ -898,6 +1189,28 @@ export function isFloorPlanEditorOpen() {
   return activeEditor != null;
 }
 
+/** Read-only 2D plan canvas — same renderer as Book it, no interaction. */
+export function mountReadonlyPlan(canvas, roomData, items) {
+  return new FloorPlanEditor({
+    canvas,
+    root: document.createElement('div'),
+    paletteEl: null,
+    roomData,
+    items,
+    enableBooking: false,
+    readOnly: true,
+    onApply: () => {},
+  });
+}
+
+export function updateReadonlyPlan(editor, items) {
+  if (!editor) return;
+  editor.items = cloneItems(items || []);
+  editor.selectedId = null;
+  editor.dirty = true;
+  editor._scheduleRender();
+}
+
 export function openFloorPlanEditor(snapshot, onApply) {
   const modal = document.getElementById('floorplan-modal');
   if (!modal || !snapshot?.roomData) return;
@@ -954,9 +1267,60 @@ export function renderPlanExport(roomData, items) {
     root: document.createElement('div'),
     roomData,
     items,
+    enableBooking: false,
     onApply: () => {}
   });
   editor.dirty = true;
   editor._render();
   return canvas.toDataURL('image/png');
+}
+
+/**
+ * Render a read-only 2D floor plan to a PNG data URL, awaiting the top-view
+ * sprites so the furniture actually draws (the sync version can render before
+ * sprites finish loading). Used for layout captures shown in the web app.
+ */
+export async function renderPlanExportAsync(roomData, items) {
+  // The editor's _resize() reads canvas.parentElement, so the canvas must live
+  // in a sized container (a detached canvas would throw).
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:1000px;height:720px;pointer-events:none;';
+  const canvas = document.createElement('canvas');
+  holder.appendChild(canvas);
+  document.body.appendChild(holder);
+
+  try {
+    const editor = new FloorPlanEditor({
+      canvas,
+      root: document.createElement('div'),
+      roomData,
+      items,
+      enableBooking: false,
+      onApply: () => {}
+    });
+
+    try {
+      const keys = Object.keys(MODEL_CATALOG);
+      const loaded = await preloadTopViews(keys);
+      loaded.forEach((entry, i) => {
+        if (entry) {
+          editor.sprites.set(keys[i], entry);
+          getFootprint(keys[i]);
+        }
+      });
+    } catch {
+      // fall through — render whatever is available
+    }
+
+    editor._resize();
+    editor.dirty = true;
+    editor._render();
+    editor.dirty = true;
+    editor._render();
+    const url = canvas.toDataURL('image/png');
+    editor.destroy();
+    return url;
+  } finally {
+    holder.remove();
+  }
 }

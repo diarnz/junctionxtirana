@@ -472,6 +472,96 @@ class RoomLayoutCreateRequest(BaseModel):
     event_request_id: UUID | None = None
 
 
+class BookingPreviewRequest(BaseModel):
+    three_d_room_id: str | None = None
+    venue_id: UUID | None = None
+    requested_date: date
+    start_time: time
+    end_time: time
+    event_type: EventType = "other"
+    setup_time_minutes: int = Field(default=60, ge=0, le=480)
+    teardown_time_minutes: int = Field(default=60, ge=0, le=480)
+    items: list[RoomLayoutItem] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate(self) -> "BookingPreviewRequest":
+        if self.end_time <= self.start_time:
+            raise ValueError("end_time must be after start_time")
+        if not self.three_d_room_id and not self.venue_id:
+            raise ValueError("Provide three_d_room_id or venue_id")
+        return self
+
+
+class BookingPreviewLine(BaseModel):
+    model_key: str
+    label: str
+    category: str | None = None
+    asset_id: UUID | None = None
+    requested: int
+    available: int
+    shortfall: int
+    unit_price: Decimal
+    line_total: Decimal
+    is_inventory: bool
+
+
+class BookingVenueLine(BaseModel):
+    venue_id: UUID
+    venue_name: str
+    hours: Decimal
+    rate_per_hour: Decimal
+    total: Decimal
+
+
+class BookingPreviewResponse(BaseModel):
+    currency: str = "EUR"
+    venue: BookingVenueLine | None = None
+    lines: list[BookingPreviewLine]
+    service_lines: list[QuotationLineItem]
+    item_count: int
+    inventory_subtotal: Decimal
+    venue_subtotal: Decimal
+    services_subtotal: Decimal
+    subtotal: Decimal
+    tax_rate: Decimal
+    tax_amount: Decimal
+    total: Decimal
+    has_shortfall: bool
+
+
+class BookingCreateRequest(BaseModel):
+    title: str = Field(min_length=3, max_length=255)
+    event_type: EventType
+    description: str | None = None
+    requested_date: date
+    start_time: time
+    end_time: time
+    attendee_count: int = Field(gt=0, le=10000)
+    three_d_room_id: str | None = None
+    venue_id: UUID | None = None
+    special_requirements: str | None = None
+    setup_time_minutes: int = Field(default=60, ge=0, le=480)
+    teardown_time_minutes: int = Field(default=60, ge=0, le=480)
+    items: list[RoomLayoutItem] = Field(default_factory=list)
+    layout_name: str | None = None
+    plan_image: str | None = None
+
+    @model_validator(mode="after")
+    def validate(self) -> "BookingCreateRequest":
+        if self.end_time <= self.start_time:
+            raise ValueError("end_time must be after start_time")
+        if not self.three_d_room_id and not self.venue_id:
+            raise ValueError("Provide three_d_room_id or venue_id")
+        return self
+
+
+class BookingCreateResponse(BaseModel):
+    request: EventRequestDetail
+    layout_id: UUID | None = None
+    reservations: list[BulkReserveResult]
+    preview: BookingPreviewResponse
+
+
 class AIChatRequest(BaseModel):
     message: str
     agent_type: Literal["copilot", "room_designer", "intake", "conflict_detector", "planner"] = "copilot"

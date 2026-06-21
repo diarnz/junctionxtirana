@@ -29,36 +29,42 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section style="display: grid; gap: var(--space-4);">
-    <div class="card" style="padding: var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap;">
-      <div style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
-        <label class="field" style="min-width: 220px;">
-          <span class="field-label">Venue</span>
-          <select v-model="selectedVenueId" class="select">
-            <option v-for="venue in venues" :key="venue.id" :value="venue.id">
-              {{ venue.name }}
-            </option>
-          </select>
-        </label>
-        <div style="color: var(--text-secondary);">
-          {{ selectedVenue?.three_d_room_id || 'No 3D room linked' }}
+  <section class="admin-page">
+    <p class="admin-page-intro">
+      Preview the Pyramid in 3D, switch venues, and launch the AI room designer.
+    </p>
+
+    <article class="card admin-section admin-section--card">
+      <div class="page-toolbar">
+        <div>
+          <label class="field">
+            <span class="field-label">Venue</span>
+            <select v-model="selectedVenueId" class="select">
+              <option v-for="venue in venues" :key="venue.id" :value="venue.id">
+                {{ venue.name }}
+              </option>
+            </select>
+          </label>
+          <p class="muted">
+            {{ selectedVenue?.three_d_room_id || 'No 3D room linked' }}
+          </p>
+        </div>
+
+        <div>
+          <button type="button" class="button button-primary" @click="openDesigner">
+            Design with AI
+          </button>
+          <a
+            class="button button-secondary"
+            :href="externalThreeDUrl"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open fullscreen
+          </a>
         </div>
       </div>
-
-      <div style="display: flex; gap: var(--space-3);">
-        <button type="button" class="button button-primary" @click="openDesigner">
-          Design with AI
-        </button>
-        <a
-          class="button button-secondary"
-          :href="externalThreeDUrl"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Open fullscreen
-        </a>
-      </div>
-    </div>
+    </article>
 
     <ThreeDFrame :room-id="selectedVenue?.three_d_room_id" />
   </section>

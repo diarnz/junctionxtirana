@@ -1,14 +1,28 @@
 import * as THREE from 'three';
 import { scene, camera, renderer, controls, setupLighting } from './sceneSetup.js';
-import { buildWorld } from './world.js';
+import { buildWorld, floorGroups } from './world.js';
 import { initUI, navState, indoorState, keys, enterRoomById } from './ui.js';
+import { applyLayoutShowcaseCamera, clearLayoutShowcaseCamera, layoutCaptureActive, renderLayoutShowcaseSnapshot } from './layoutShowcase.js';
 import { preloadModels, boxData } from './factories.js';
-import { initFurnishing, updateFurnishingPreview, hydrateAllRoomLayouts } from './furnishing.js';
-import { isFloorPlanEditorOpen } from './floorPlanEditor.js';
+import { initFurnishing, updateFurnishingPreview, hydrateAllRoomLayouts, applyLayoutFromPlan, captureRoomSnapshot } from './furnishing.js';
+import { isFloorPlanEditorOpen, renderPlanExportAsync } from './floorPlanEditor.js';
 import { bridge } from './bridge.js';
+import { ROOM_FLOOR } from './roomPlanMeta.js';
 
 window.boxData = boxData;
 bridge.connect();
+
+let viewerBooted = false;
+/** @type {Array<Record<string, unknown>>} */
+const pendingCaptures = [];
+
+const urlParams = new URLSearchParams(window.location.search);
+const appMode = urlParams.get('mode');
+const showcaseRoomId = urlParams.get('roomId');
+
+if (appMode === 'showcase') {
+  document.body.classList.add('showcase-embed');
+}
 
 const domeLight = setupLighting();
 
@@ -54,20 +68,134 @@ preloadModels(
     initFurnishing(renderer, camera);
     hydrateAllRoomLayouts();
     initUI();
+    if (appMode === 'showcase') {
+      controls.enabled = false;
+      scene.fog = new THREE.Fog(0x111118, 60, 140);
+    }
     const initialRoomId = new URLSearchParams(window.location.search).get('autoRoom');
     if (initialRoomId) {
       requestAnimationFrame(() => {
         enterRoomById(initialRoomId);
       });
     }
+    // Tell an embedding parent (the web app) the viewer is ready for captures.
+    viewerBooted = true;
+    if (appMode === 'showcase') {
+      window.parent?.postMessage({ type: 'SHOWCASE_VIEW_READY', payload: { roomId: showcaseRoomId } }, '*');
+      if (showcaseRoomId) {
+        requestAnimationFrame(() => applyShowcaseLayout(showcaseRoomId, []));
+      }
+    } else {
+      window.parent?.postMessage({ type: 'VIEWER_READY' }, '*');
+    }
+    const queued = pendingCaptures.splice(0);
+    queued.forEach((payload) => handleCaptureLayout(payload));
   }
 );
 
+function focusShowcaseFloor(floorKey) {
+  ['floor0', 'floor1', 'floor3'].forEach((key) => {
+    const visible = !floorKey || key === floorKey;
+    floorGroups[key].forEach((obj) => {
+      if (obj) obj.visible = visible;
+    });
+  });
+}
+
+function applyShowcaseLayout(roomId, items) {
+  if (!enterRoomById(roomId)) return false;
+
+  focusShowcaseFloor(ROOM_FLOOR[roomId]);
+
+  applyLayoutFromPlan(items || [], { skipPersist: true });
+  const snap = captureRoomSnapshot();
+  const room = snap?.roomData ?? indoorState.activeRoomData;
+  const layoutItems = snap?.items ?? items ?? [];
+  if (room) {
+    applyLayoutShowcaseCamera(room, layoutItems);
+    navState.isNavigating = false;
+    renderer.render(scene, camera);
+  }
+  return Boolean(room);
+}
+
+async function handleCaptureLayout(payload) {
+  let plan2d = null;
+  let snapshot3d = null;
+  const entered = enterRoomById(payload.roomId);
+  if (entered) {
+    try {
+      applyLayoutFromPlan(payload.items || [], { skipPersist: true });
+      const snap = captureRoomSnapshot();
+      if (snap) plan2d = await renderPlanExportAsync(snap.roomData, snap.items);
+    } catch (err) {
+      plan2d = null;
+    }
+
+    try {
+      const snap = captureRoomSnapshot();
+      const room = snap?.roomData ?? indoorState.activeRoomData;
+      const items = snap?.items ?? payload.items ?? [];
+      if (room) {
+        applyLayoutShowcaseCamera(room, items);
+        snapshot3d = await renderLayoutShowcaseSnapshot(renderer, scene);
+      }
+    } catch (err) {
+      snapshot3d = null;
+    } finally {
+      clearLayoutShowcaseCamera();
+    }
+  }
+  window.parent?.postMessage(
+    { type: 'LAYOUT_CAPTURE_RESULT', payload: { roomId: payload.roomId, plan2d, snapshot3d } },
+    '*',
+  );
+}
+
 window.addEventListener('message', (event) => {
-  if (event.origin !== 'http://localhost:5173') return;
   const { type, payload = {} } = event.data || {};
+  if (type === 'SET_PLAN_ITEMS' && appMode === 'showcase') {
+    const roomId = payload.roomId || showcaseRoomId;
+    if (roomId) applyShowcaseLayout(roomId, payload.items || []);
+    return;
+  }
   if (type === 'NAVIGATE_TO_ROOM' && payload.roomId) {
     enterRoomById(payload.roomId);
+  }
+  if (type === 'CAPTURE_LAYOUT' && payload.roomId) {
+    if (!viewerBooted) {
+      pendingCaptures.push(payload);
+      return;
+    }
+    handleCaptureLayout(payload);
+  }
+  if (type === 'CAPTURE_SNAPSHOT' && payload.roomId) {
+    (async () => {
+      let image = null;
+      const entered = enterRoomById(payload.roomId);
+      if (entered) {
+        try {
+          if (payload.items?.length) {
+            applyLayoutFromPlan(payload.items, { skipPersist: true });
+          }
+          const snap = captureRoomSnapshot();
+          const room = snap?.roomData ?? indoorState.activeRoomData;
+          const items = snap?.items ?? payload.items ?? [];
+          if (room) {
+            applyLayoutShowcaseCamera(room, items);
+            image = await renderLayoutShowcaseSnapshot(renderer, scene);
+          }
+        } catch (err) {
+          image = null;
+        } finally {
+          clearLayoutShowcaseCamera();
+        }
+      }
+      window.parent?.postMessage(
+        { type: 'SNAPSHOT_RESULT', payload: { roomId: payload.roomId, image } },
+        '*',
+      );
+    })();
   }
 });
 
@@ -86,7 +214,7 @@ function animate() {
   const delta = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  if (navState.isNavigating) {
+  if (navState.isNavigating && !layoutCaptureActive) {
     camera.position.lerp(navState.targetCamPos, navState.lerpSpeed);
     if (controls.enabled) {
       controls.target.lerp(navState.targetLook, navState.lerpSpeed);
@@ -109,7 +237,7 @@ function animate() {
   }
 
   // Handle first-person camera look-around and movement inside rooms
-  if (indoorState.isIndoorMode && !navState.isNavigating) {
+  if (indoorState.isIndoorMode && !navState.isNavigating && !layoutCaptureActive) {
     const targetDir = new THREE.Vector3(
       Math.sin(indoorState.yaw) * Math.cos(indoorState.pitch),
       Math.sin(indoorState.pitch),

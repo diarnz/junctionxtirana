@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import { friendlyError, quotationsApi, requestsApi } from '@/api/client'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { EventRequestSummary, QuotationResponse } from '@/types'
 
@@ -47,79 +48,77 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: var(--space-5); border-bottom: 1px solid var(--border);">
-      <h2 style="margin: 0;">Quotations</h2>
-      <p style="margin: var(--space-2) 0 0; color: var(--text-secondary);">
-        Generate formal quotations from request data and AI-backed pricing logic.
-      </p>
-    </div>
+  <section class="admin-page">
+    <p class="admin-page-intro">
+      Generate and send formal quotations from request data and AI-backed pricing.
+    </p>
 
-    <div v-if="loading" class="empty-state">
-      <div class="spinner" />
-    </div>
+    <div class="admin-section">
+      <div class="admin-section__head">
+        <div>
+          <h2 class="admin-section__title">Quotations</h2>
+          <p class="section-copy">
+            Generate formal quotations from request data and AI-backed pricing logic.
+          </p>
+        </div>
+      </div>
 
-    <table v-else style="width: 100%; border-collapse: collapse;">
-      <thead>
-        <tr style="background: var(--bg-secondary); text-align: left;">
-          <th style="padding: 0.9rem 1rem;">Request</th>
-          <th style="padding: 0.9rem 1rem;">Date</th>
-          <th style="padding: 0.9rem 1rem;">Status</th>
-          <th style="padding: 0.9rem 1rem;">Quotation</th>
-          <th style="padding: 0.9rem 1rem;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="item in requests"
-          :key="item.id"
-          style="border-top: 1px solid var(--border-light);"
-        >
-          <td style="padding: 1rem;">
-            <div style="font-weight: 600;">{{ item.title }}</div>
-            <div style="color: var(--text-tertiary); font-size: 0.85rem;">
-              {{ item.attendee_count }} attendees
-            </div>
-          </td>
-          <td style="padding: 1rem;">{{ item.requested_date }}</td>
-          <td style="padding: 1rem;">{{ item.status }}</td>
-          <td style="padding: 1rem;">
-            <template v-if="quotationByRequest[item.id]">
-              <strong>EUR {{ quotationByRequest[item.id].total_amount }}</strong>
-              <div style="color: var(--text-tertiary); font-size: 0.82rem;">
-                {{ quotationByRequest[item.id].status }}
-              </div>
-            </template>
-            <span v-else style="color: var(--text-tertiary);">Not generated</span>
-          </td>
-          <td style="padding: 1rem;">
-            <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
-              <button
-                type="button"
-                class="button button-secondary"
-                :disabled="generatingFor === item.id"
-                @click="generateQuotation(item.id)"
-              >
-                {{ generatingFor === item.id ? 'Generating...' : 'Generate' }}
-              </button>
-              <button
-                v-if="quotationByRequest[item.id]"
-                type="button"
-                class="button button-primary"
-                @click="sendQuotation(item.id)"
-              >
-                Send
-              </button>
-              <RouterLink
-                :to="`/admin/requests/${item.id}`"
-                class="button button-ghost"
-              >
-                Review
-              </RouterLink>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <EmptyState v-if="loading" title="Loading quotations…" loading />
+
+      <div v-else class="table-shell">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Request</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Quotation</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in requests" :key="item.id">
+              <td>
+                <strong>{{ item.title }}</strong>
+                <div class="muted">{{ item.attendee_count }} attendees</div>
+              </td>
+              <td>{{ item.requested_date }}</td>
+              <td class="text-capitalize">{{ item.status.replace('_', ' ') }}</td>
+              <td>
+                <template v-if="quotationByRequest[item.id]">
+                  <strong>EUR {{ quotationByRequest[item.id].total_amount }}</strong>
+                  <div class="muted">{{ quotationByRequest[item.id].status }}</div>
+                </template>
+                <span v-else class="muted">Not generated</span>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  class="button button-secondary"
+                  :disabled="generatingFor === item.id"
+                  @click="generateQuotation(item.id)"
+                >
+                  {{ generatingFor === item.id ? 'Generating...' : 'Generate' }}
+                </button>
+                <button
+                  v-if="quotationByRequest[item.id]"
+                  type="button"
+                  class="button button-primary"
+                  @click="sendQuotation(item.id)"
+                >
+                  Send
+                </button>
+                <RouterLink
+                  :to="`/admin/requests/${item.id}`"
+                  class="button button-ghost"
+                >
+                  Review
+                </RouterLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
 </template>

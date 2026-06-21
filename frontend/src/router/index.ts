@@ -4,7 +4,6 @@ import { useAuthStore } from '@/stores/auth'
 
 const HomeView = () => import('@/views/public/HomeView.vue')
 const VenuesView = () => import('@/views/public/VenuesView.vue')
-const BookingView = () => import('@/views/public/BookingView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
 const RegisterView = () => import('@/views/auth/RegisterView.vue')
 const AuthCallbackView = () => import('@/views/auth/AuthCallbackView.vue')
@@ -20,6 +19,7 @@ const CalendarView = () => import('@/views/admin/CalendarView.vue')
 const QuotationsView = () => import('@/views/admin/QuotationsView.vue')
 const TasksView = () => import('@/views/admin/TasksView.vue')
 const VisualizationView = () => import('@/views/admin/VisualizationView.vue')
+const SpecSheetView = () => import('@/views/admin/SpecSheetView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -35,12 +35,6 @@ const router = createRouter({
       name: 'venues',
       component: VenuesView,
       meta: { title: 'SpaceFlow - Venues' },
-    },
-    {
-      path: '/book',
-      name: 'book',
-      component: BookingView,
-      meta: { title: 'SpaceFlow - Book a Space' },
     },
     {
       path: '/login',
@@ -77,6 +71,12 @@ const router = createRouter({
       name: 'my-request-detail',
       component: ClientRequestDetailView,
       meta: { requiresAuth: true, title: 'SpaceFlow - Request Detail' },
+    },
+    {
+      path: '/admin/requests/:id/spec',
+      name: 'admin-request-spec',
+      component: SpecSheetView,
+      meta: { requiresAuth: true, requiresStaff: true, title: 'SpaceFlow - Spec Sheet' },
     },
     {
       path: '/admin',

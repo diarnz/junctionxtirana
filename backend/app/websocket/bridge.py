@@ -126,17 +126,31 @@ async def _handle_upstream_message(message: dict, websocket: WebSocket) -> None:
 
 
 def _build_ai_design_message(result: dict) -> str:
+    if result.get("status_message"):
+        return str(result["status_message"])
+
+    if result.get("cleared") or result.get("layout_style") == "empty":
+        return "Room cleared — tell me what you'd like next."
+
+    removed = result.get("removed_models") or []
     added = result.get("added_models") or []
+
+    if removed and not added:
+        return f"Removed {', '.join(removed)} from the room."
+
     if added:
         msg = f"Added {', '.join(added)} to your current layout."
+    elif result.get("modified"):
+        msg = "Layout updated."
     else:
         style = str(result.get("layout_style") or "custom").replace("_", " ")
         seats = result.get("placed_seats", 0)
         count = result.get("item_count", 0)
         models = result.get("models_used") or []
-        msg = f"I composed a custom {style} layout with {seats} seats and {count} items."
+        msg = f"Created a {style} layout with {seats} seats and {count} items."
         if models:
-            msg += f" Models used: {', '.join(models)}."
+            msg += f" Models: {', '.join(models)}."
+
     limitations = result.get("limitations") or []
     if limitations:
         msg += f" {limitations[0]}"
@@ -208,7 +222,9 @@ async def _run_ai_design(
                     "models_used": result.get("models_used") or [],
                     "layout_style": result.get("layout_style"),
                     "modified": bool(result.get("modified")),
+                    "cleared": bool(result.get("cleared")),
                     "added_models": result.get("added_models") or [],
+                    "removed_models": result.get("removed_models") or [],
                 },
             },
         )

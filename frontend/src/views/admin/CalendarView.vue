@@ -63,7 +63,22 @@ const calendarOptions = computed(() => ({
 </script>
 
 <template>
-  <section class="card" style="padding: var(--space-5); overflow: hidden;">
-    <FullCalendar :options="calendarOptions" />
+  <section class="admin-page">
+    <p class="admin-page-intro">
+      View scheduled events and conflicts across Pyramid venues.
+    </p>
+
+    <article class="card admin-section admin-section--card admin-section--card--flush">
+      <div class="admin-section__head">
+        <div>
+          <h2 class="admin-section__title">Event calendar</h2>
+          <p class="section-copy">
+            Click an event to open the full request detail.
+          </p>
+        </div>
+      </div>
+
+      <FullCalendar :options="calendarOptions" />
+    </article>
   </section>
 </template>

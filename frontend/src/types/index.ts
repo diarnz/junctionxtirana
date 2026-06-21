@@ -310,6 +310,43 @@ export interface RoomLayoutResponse {
   created_at: string
 }
 
+export interface BookingPreviewLine {
+  model_key: string
+  label: string
+  category: string | null
+  asset_id: string | null
+  requested: number
+  available: number
+  shortfall: number
+  unit_price: string
+  line_total: string
+  is_inventory: boolean
+}
+
+export interface BookingVenueLine {
+  venue_id: string
+  venue_name: string
+  hours: string
+  rate_per_hour: string
+  total: string
+}
+
+export interface BookingPreviewResponse {
+  currency: string
+  venue: BookingVenueLine | null
+  lines: BookingPreviewLine[]
+  service_lines: { category: string; name: string; qty: number; unit_price: string; total: string }[]
+  item_count: number
+  inventory_subtotal: string
+  venue_subtotal: string
+  services_subtotal: string
+  subtotal: string
+  tax_rate: string
+  tax_amount: string
+  total: string
+  has_shortfall: boolean
+}
+
 export type AgentType = 'copilot' | 'room_designer' | 'intake' | 'conflict_detector' | 'planner'
 
 export interface AIChatResponse {

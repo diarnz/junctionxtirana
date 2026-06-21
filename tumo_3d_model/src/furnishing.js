@@ -24,7 +24,9 @@ import {
   setTemplateSelectHandler
 } from './furniturePanel.js';
 import { getRoomTemplate, getHackathonPodCenters, getMediaStudioLayout, getClassroomLayout } from './roomTemplates.js';
-import { initAiPanel, refreshAiRoomContext } from './aiPanel.js';
+import { initAiPanel, refreshAiRoomContext, resetAiConversation } from './aiPanel.js';
+import { initBookingPanel, refreshBookingContext } from './bookingPanel.js';
+import { isBookingEnabled } from './bookingApi.js';
 
 const STORAGE_PREFIX = 'tumo_furniture_';
 const HIGHLIGHT_COLOR = new THREE.Color(0x44aaff);
@@ -1641,6 +1643,7 @@ function buildPalette() {
   });
 
   initAiPanel();
+  initBookingPanel();
 
   setFurniturePanelFilterHandler((filter) => {
     if (getActiveFurnishSection() === 'customize') {
@@ -1655,6 +1658,11 @@ function buildPalette() {
       clearSelectionHighlight();
       setCrosshairVisible(false);
       refreshAiRoomContext();
+    } else if (section === 'booking') {
+      deselectModel();
+      clearSelectionHighlight();
+      setCrosshairVisible(false);
+      refreshBookingContext();
     }
   });
 
@@ -1796,20 +1804,16 @@ export function enterFurnishingMode(group, data) {
   }
 
   deselectModel();
-  const savedItems = roomData?.roomId ? loadLayout(roomData.roomId) : [];
-
-  if (savedItems.length === 0) {
-    setFurnishSection('ai');
-    setActiveTemplateId(null);
-  } else {
-    setFurnishSection('customize');
-    setTemplatesMode(false);
-    setRemoveMode(getActiveFurnishFilter() === 'remove');
-  }
+  resetAiConversation();
+  setFurnishSection('ai');
+  setActiveTemplateId(null);
+  setTemplatesMode(false);
+  setRemoveMode(false);
 
   setTemplatesMode(getActiveFurnishSection() === 'templates');
   updatePlacedCount();
   refreshAiRoomContext();
+  if (isBookingEnabled()) refreshBookingContext();
 }
 
 export function applyLayoutFromPlan(items, options = {}) {
@@ -1823,7 +1827,9 @@ export function applyLayoutFromPlan(items, options = {}) {
 
   clearSelectionHighlight();
   deselectModel();
-  persistLayout({ skipBridge: options.source === 'ai_agent' });
+  if (!options.skipPersist) {
+    persistLayout({ skipBridge: options.source === 'ai_agent' });
+  }
   updatePlacedCount();
 }
 

@@ -5,18 +5,27 @@ import { useRoute } from 'vue-router'
 import AiProposalCard from '@/components/requests/AiProposalCard.vue'
 import ConflictAlert from '@/components/requests/ConflictAlert.vue'
 import RequestStatusBadge from '@/components/requests/RequestStatusBadge.vue'
-import ThreeDFrame from '@/components/visualization/ThreeDFrame.vue'
+import BackLink from '@/components/ui/BackLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import LayoutCapture from '@/components/visualization/LayoutCapture.vue'
 import {
   aiApi,
   friendlyError,
+  layoutsApi,
   requestsApi,
   reservationsApi,
   tasksApi,
 } from '@/api/client'
+import { countItems } from '@/lib/layoutCatalog'
 import { useAiStore } from '@/stores/ai'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useRequestsStore } from '@/stores/requests'
-import type { Conflict, ReservationResponse, TaskResponse } from '@/types'
+import type {
+  Conflict,
+  ReservationResponse,
+  RoomLayoutResponse,
+  TaskResponse,
+} from '@/types'
 
 const route = useRoute()
 const requestStore = useRequestsStore()
@@ -27,6 +36,7 @@ const activeTab = ref<'overview' | 'conflicts' | 'tasks' | 'reservations' | 'roo
 const conflicts = ref<Conflict[]>([])
 const tasks = ref<TaskResponse[]>([])
 const reservations = ref<ReservationResponse[]>([])
+const layout = ref<RoomLayoutResponse | null>(null)
 const rejectReason = ref('')
 const showReject = ref(false)
 const actioning = ref(false)
@@ -44,16 +54,18 @@ async function loadDetail() {
 async function loadExtras() {
   loadingExtras.value = true
   try {
-    const [conflictData, taskData, reservationData] = await Promise.all([
+    const [conflictData, taskData, reservationData, layoutData] = await Promise.all([
       requestsApi.conflicts(requestId.value).catch(() => ({
         conflicts: [],
       })),
       tasksApi.list({ request_id: requestId.value }).catch(() => []),
       reservationsApi.list(requestId.value).catch(() => []),
+      layoutsApi.byRequest(requestId.value).catch(() => null),
     ])
     conflicts.value = conflictData.conflicts ?? []
     tasks.value = taskData
     reservations.value = reservationData
+    layout.value = layoutData
   } finally {
     loadingExtras.value = false
   }
@@ -113,6 +125,20 @@ async function runConflictAgent() {
   }
 }
 
+const layoutCounts = computed(() => countItems(layout.value?.items_json ?? []))
+
+const tabs = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'conflicts', label: 'Conflicts' },
+  { id: 'reservations', label: 'Reservations' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'room', label: '3D Room' },
+] as const
+
+function openSpecSheet() {
+  window.open(`/admin/requests/${requestId.value}/spec`, '_blank')
+}
+
 function openAi(mode: 'copilot' | 'room_designer' | 'planner' | 'conflict_detector') {
   ai.resetConversation()
   ai.setPanelState(true, mode, {
@@ -126,31 +152,31 @@ onMounted(loadDetail)
 </script>
 
 <template>
-  <section v-if="requestStore.loading && !hasRequest" class="empty-state">
-    <div class="spinner" />
-  </section>
+  <EmptyState v-if="requestStore.loading && !hasRequest" title="Loading request…" loading />
 
-  <section v-else-if="!requestDetail" class="empty-state">
-    Request not found.
-  </section>
+  <EmptyState
+    v-else-if="!requestDetail"
+    title="Request not found"
+    message="This request may have been removed or you may not have access."
+  >
+    <RouterLink to="/admin/requests" class="button button-secondary">Back to requests</RouterLink>
+  </EmptyState>
 
-  <section v-else style="display: grid; gap: var(--space-6);">
-    <header class="card" style="padding: var(--space-6); display: grid; gap: var(--space-4);">
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap;">
+  <section v-else class="admin-page request-detail">
+    <header class="card request-detail__header">
+      <div class="request-detail__top">
         <div>
-          <RouterLink to="/admin/requests" style="color: var(--text-tertiary); font-size: 0.9rem;">
-            ← Back to requests
-          </RouterLink>
-          <h1 style="margin: var(--space-2) 0;">{{ requestDetail.title }}</h1>
-          <div style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
+          <BackLink to="/admin/requests" label="Back to requests" />
+          <h1 class="request-detail__title">{{ requestDetail.title }}</h1>
+          <div class="request-detail__meta">
             <RequestStatusBadge :status="requestDetail.status" />
-            <span style="color: var(--text-secondary);">
-              {{ requestDetail.event_type }} · {{ requestDetail.attendee_count }} attendees · {{ requestDetail.requested_date }}
+            <span class="muted text-capitalize">
+              {{ requestDetail.event_type.replaceAll('_', ' ') }} · {{ requestDetail.attendee_count }} attendees · {{ requestDetail.requested_date }}
             </span>
           </div>
         </div>
 
-        <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+        <div class="request-detail__actions">
           <button type="button" class="button button-secondary" @click="openAi('copilot')">
             Ask AI
           </button>
@@ -175,53 +201,23 @@ onMounted(loadDetail)
         </div>
       </div>
 
-      <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+      <div class="filter-pills">
         <button
+          v-for="tab in tabs"
+          :key="tab.id"
           type="button"
-          class="button"
-          :class="activeTab === 'overview' ? 'button-primary' : 'button-secondary'"
-          @click="activeTab = 'overview'"
+          class="filter-pill"
+          :class="{ 'is-active': activeTab === tab.id }"
+          @click="activeTab = tab.id"
         >
-          Overview
-        </button>
-        <button
-          type="button"
-          class="button"
-          :class="activeTab === 'conflicts' ? 'button-primary' : 'button-secondary'"
-          @click="activeTab = 'conflicts'"
-        >
-          Conflicts
-        </button>
-        <button
-          type="button"
-          class="button"
-          :class="activeTab === 'reservations' ? 'button-primary' : 'button-secondary'"
-          @click="activeTab = 'reservations'"
-        >
-          Reservations
-        </button>
-        <button
-          type="button"
-          class="button"
-          :class="activeTab === 'tasks' ? 'button-primary' : 'button-secondary'"
-          @click="activeTab = 'tasks'"
-        >
-          Tasks
-        </button>
-        <button
-          type="button"
-          class="button"
-          :class="activeTab === 'room' ? 'button-primary' : 'button-secondary'"
-          @click="activeTab = 'room'"
-        >
-          3D Room
+          {{ tab.label }}
         </button>
       </div>
     </header>
 
     <div v-if="activeTab === 'overview'" class="split-grid two-col">
-      <article class="card" style="padding: var(--space-6); display: grid; gap: var(--space-3);">
-        <h2 style="margin: 0;">Request details</h2>
+      <article class="card detail-panel">
+        <h2 class="admin-section__title">Request details</h2>
         <div><strong>Client:</strong> {{ requestDetail.client?.full_name ?? 'Unknown' }}</div>
         <div><strong>Organization:</strong> {{ requestDetail.client?.organization ?? 'N/A' }}</div>
         <div><strong>Venue:</strong> {{ requestDetail.venue?.name ?? 'Not assigned' }}</div>
@@ -235,27 +231,22 @@ onMounted(loadDetail)
         v-if="requestDetail.ai_proposal_json"
         :proposal="requestDetail.ai_proposal_json"
       />
-      <div v-else class="card" style="padding: var(--space-6);">
-        <div style="display: flex; align-items: center; gap: var(--space-3);">
-          <div class="spinner" />
-          <span>AI proposal is still being prepared.</span>
-        </div>
+      <div v-else class="card detail-panel">
+        <EmptyState title="AI proposal in progress" message="The AI proposal is still being prepared for this request." loading />
       </div>
     </div>
 
-    <div v-else-if="activeTab === 'conflicts'" style="display: grid; gap: var(--space-4);">
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);">
-        <h2 style="margin: 0;">Conflict detection</h2>
+    <div v-else-if="activeTab === 'conflicts'" class="admin-section">
+      <div class="admin-section__head">
+        <h2 class="admin-section__title">Conflict detection</h2>
         <button type="button" class="button button-secondary" :disabled="actioning" @click="runConflictAgent">
           Run AI conflict check
         </button>
       </div>
 
-      <div v-if="loadingExtras && !conflicts.length" class="empty-state">
-        <div class="spinner" />
-      </div>
+      <EmptyState v-if="loadingExtras && !conflicts.length" title="Checking conflicts…" loading />
 
-      <div v-else-if="!conflicts.length" class="card" style="padding: var(--space-6); color: var(--success);">
+      <div v-else-if="!conflicts.length" class="alert alert-success">
         No conflicts detected for this request.
       </div>
 
@@ -266,38 +257,33 @@ onMounted(loadDetail)
       />
     </div>
 
-    <div v-else-if="activeTab === 'reservations'" class="card" style="padding: var(--space-6);">
-      <h2 style="margin-top: 0;">Asset reservations</h2>
+    <article v-else-if="activeTab === 'reservations'" class="card detail-panel">
+      <h2 class="admin-section__title">Asset reservations</h2>
 
-      <div v-if="loadingExtras && !reservations.length" class="empty-state">
-        <div class="spinner" />
-      </div>
+      <EmptyState v-if="loadingExtras && !reservations.length" title="Loading reservations…" loading />
 
-      <div v-else-if="!reservations.length" class="empty-state">
-        No asset reservations yet.
-      </div>
+      <EmptyState
+        v-else-if="!reservations.length"
+        title="No reservations yet"
+        message="Asset reservations will appear here once they are created."
+      />
 
-      <div v-else style="display: grid; gap: var(--space-3);">
-        <div
-          v-for="reservation in reservations"
-          :key="reservation.id"
-          class="card"
-          style="padding: var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);"
-        >
+      <div v-else class="detail-list">
+        <div v-for="reservation in reservations" :key="reservation.id" class="card detail-list__item">
           <div>
             <strong>{{ reservation.asset_name }}</strong>
-            <div style="color: var(--text-secondary);">
+            <div class="muted">
               Requested {{ reservation.quantity_requested }} · confirmed {{ reservation.quantity_confirmed }}
             </div>
           </div>
-          <span class="badge badge-neutral">{{ reservation.status }}</span>
+          <span class="badge badge-neutral text-capitalize">{{ reservation.status.replaceAll('_', ' ') }}</span>
         </div>
       </div>
-    </div>
+    </article>
 
-    <div v-else-if="activeTab === 'tasks'" style="display: grid; gap: var(--space-4);">
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);">
-        <h2 style="margin: 0;">Operational tasks</h2>
+    <div v-else-if="activeTab === 'tasks'" class="admin-section">
+      <div class="admin-section__head">
+        <h2 class="admin-section__title">Operational tasks</h2>
         <button
           type="button"
           class="button button-primary"
@@ -308,53 +294,85 @@ onMounted(loadDetail)
         </button>
       </div>
 
-      <div v-if="loadingExtras && !tasks.length" class="empty-state">
-        <div class="spinner" />
-      </div>
+      <EmptyState v-if="loadingExtras && !tasks.length" title="Loading tasks…" loading />
 
-      <div v-else-if="!tasks.length" class="card" style="padding: var(--space-6); color: var(--text-secondary);">
-        No tasks have been generated for this request yet.
-      </div>
+      <EmptyState
+        v-else-if="!tasks.length"
+        title="No tasks yet"
+        message="Generate a task list to plan setup and teardown for this event."
+      />
 
-      <div v-else style="display: grid; gap: var(--space-3);">
-        <article
-          v-for="task in tasks"
-          :key="task.id"
-          class="card"
-          style="padding: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-4);"
-        >
+      <div v-else class="detail-list">
+        <article v-for="task in tasks" :key="task.id" class="card detail-list__item detail-list__item--stack">
           <div>
-            <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1);">
-              <span class="badge badge-neutral">{{ task.task_type }}</span>
+            <div class="detail-list__badges">
+              <span class="badge badge-neutral text-capitalize">{{ task.task_type.replaceAll('_', ' ') }}</span>
               <span class="badge" :class="task.status === 'done' ? 'badge-success' : task.status === 'blocked' ? 'badge-error' : 'badge-info'">
-                {{ task.status }}
+                {{ task.status.replaceAll('_', ' ') }}
               </span>
             </div>
             <strong>{{ task.title }}</strong>
-            <div style="color: var(--text-secondary); margin-top: 0.25rem;">
+            <div class="muted">
               Due {{ new Date(task.due_at).toLocaleString() }}
             </div>
           </div>
-          <div style="text-align: right;">
-            <div style="color: var(--text-tertiary); font-size: 0.82rem;">Priority</div>
-            <strong>{{ task.priority }}</strong>
+          <div class="detail-list__aside">
+            <div class="muted detail-list__aside-label">Priority</div>
+            <strong class="text-capitalize">{{ task.priority }}</strong>
           </div>
         </article>
       </div>
     </div>
 
-    <div v-else-if="activeTab === 'room'" style="display: grid; gap: var(--space-4);">
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);">
-        <h2 style="margin: 0;">3D room visualization</h2>
-        <button
-          type="button"
-          class="button button-primary"
-          @click="openAi('room_designer')"
-        >
-          Design with AI
-        </button>
+    <div v-else-if="activeTab === 'room'" class="admin-section">
+      <div class="admin-section__head">
+        <div>
+          <h2 class="admin-section__title">Client layout</h2>
+          <p class="section-copy">
+            {{ layout ? `${layout.item_count} items · ${layout.source.replaceAll('_', ' ')}` : 'No saved layout yet' }}
+          </p>
+        </div>
+        <div class="action-row">
+          <button type="button" class="button button-secondary" @click="openAi('room_designer')">
+            Design with AI
+          </button>
+          <button
+            type="button"
+            class="button button-primary"
+            :disabled="!layout"
+            @click="openSpecSheet"
+          >
+            Export A4 spec sheet
+          </button>
+        </div>
       </div>
-      <ThreeDFrame :room-id="requestDetail.venue?.three_d_room_id" />
+
+      <div class="split-grid two-col">
+        <article class="card detail-panel">
+          <h3 class="admin-section__title">Layout visuals</h3>
+          <LayoutCapture
+            :items="layout?.items_json ?? []"
+            :room-id="layout?.three_d_room_id ?? requestDetail.venue?.three_d_room_id"
+            :plan-image="layout?.thumbnail_url ?? null"
+          />
+        </article>
+
+        <article class="card detail-panel">
+          <h3 class="admin-section__title">Layout breakdown</h3>
+          <div v-if="!layoutCounts.length" class="muted">
+            The client has not placed any furniture yet.
+          </div>
+          <div v-else class="detail-breakdown">
+            <div v-for="entry in layoutCounts" :key="entry.modelKey" class="detail-breakdown__row">
+              <span class="detail-breakdown__label">
+                <span class="detail-breakdown__swatch" :style="{ background: entry.color }" />
+                {{ entry.label }}
+              </span>
+              <strong>×{{ entry.count }}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
 
     <div v-if="showReject" class="modal-backdrop">
@@ -386,3 +404,101 @@ onMounted(loadDetail)
     </div>
   </section>
 </template>
+
+<style scoped>
+.request-detail__header {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+}
+
+.request-detail__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.request-detail__title {
+  margin: 0 0 var(--space-2);
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+}
+
+.request-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.request-detail__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.detail-panel {
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.detail-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.detail-list__item {
+  padding: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.detail-list__item--stack {
+  align-items: flex-start;
+}
+
+.detail-list__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.detail-list__aside {
+  text-align: right;
+}
+
+.detail-list__aside-label {
+  font-size: 0.82rem;
+  margin-bottom: 0.15rem;
+}
+
+.detail-breakdown {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.detail-breakdown__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.detail-breakdown__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detail-breakdown__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+</style>

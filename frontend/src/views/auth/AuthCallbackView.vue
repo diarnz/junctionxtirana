@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import AuroraBackground from '@/components/layout/AuroraBackground.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -34,34 +36,70 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main
-    style="
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(180deg, var(--hero-gradient-start), var(--hero-gradient-end));
-      padding: var(--space-6);
-    "
-  >
-    <section class="card" style="width: min(460px, 100%); padding: var(--space-8); text-align: center;">
+  <main class="public-page auth">
+    <AuroraBackground />
+
+    <section class="auth__card card fade-up">
+      <RouterLink to="/" class="auth__brand">
+        <img src="/logo.png" alt="SpaceFlo" class="auth__logo" />
+      </RouterLink>
+
       <template v-if="!errorMessage">
-        <h1 style="margin: 0 0 var(--space-3);">Completing sign in</h1>
-        <p style="margin: 0; color: var(--text-secondary);">
-          Finalizing your SpaceFlow session...
-        </p>
+        <h1 class="auth__title">Completing sign in</h1>
+        <EmptyState title="Finalizing your SpaceFlow session…" loading />
       </template>
 
       <template v-else>
-        <h1 style="margin: 0 0 var(--space-3);">Sign-in failed</h1>
-        <p style="margin: 0 0 var(--space-6); color: var(--text-secondary);">
-          {{ errorMessage }}
-        </p>
-        <div style="display: flex; justify-content: center; gap: var(--space-3); flex-wrap: wrap;">
-          <RouterLink to="/login" class="button button-primary">Back to login</RouterLink>
-          <RouterLink to="/register" class="button button-secondary">Create account</RouterLink>
+        <h1 class="auth__title">Sign-in failed</h1>
+        <div class="alert alert-error auth__alert">{{ errorMessage }}</div>
+        <div class="auth__cta-row">
+          <RouterLink to="/login" class="button button-primary button-lg">Back to login</RouterLink>
+          <RouterLink to="/register" class="button button-secondary button-lg">Create account</RouterLink>
         </div>
       </template>
     </section>
   </main>
 </template>
+
+<style scoped>
+.auth {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+.auth__card {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 100%);
+  padding: var(--space-8);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+}
+.auth__brand {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+.auth__logo {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+}
+.auth__title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.85rem;
+  font-weight: 800;
+}
+.auth__alert {
+  margin-bottom: var(--space-6);
+}
+.auth__cta-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+</style>

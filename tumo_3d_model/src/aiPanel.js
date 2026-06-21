@@ -12,16 +12,14 @@ let designTimeout = null;
 let lastLayoutStyle = null;
 let pendingDesignRoomId = null;
 let searchBar = null;
-const messages = [];
 
 function getElements() {
   return {
-    panelEl: document.querySelector('#furnish-section-ai .ai-panel'),
+    panelEl: document.querySelector('#ai-dock .ai-panel'),
     roomLabel: document.getElementById('ai-room-label'),
     messagesEl: document.getElementById('ai-messages'),
     statusEl: document.getElementById('ai-status'),
     searchMount: document.getElementById('ai-search-mount'),
-    hintEl: document.querySelector('.ai-search-hint'),
   };
 }
 
@@ -61,46 +59,28 @@ function getExistingLayoutItems(roomId) {
   }
 }
 
-function updateChatLayout() {
-  const { panelEl } = getElements();
-  const hasChat = messages.length > 0 || loading;
-  panelEl?.classList.toggle('ai-panel--chatting', hasChat);
-  document.getElementById('furniture-panel')?.classList.toggle('furnish-mode-ai-chat', hasChat);
+let statusResetTimer = null;
+
+function showStatus(text, { busy = false } = {}) {
+  const { statusEl } = getElements();
+  if (!statusEl) return;
+  statusEl.textContent = text;
+  statusEl.classList.toggle('ai-status--busy', busy);
+  statusEl.classList.toggle('ai-status--visible', Boolean(text));
+}
+
+function scheduleStatusReset(delayMs = 5000) {
+  if (statusResetTimer) clearTimeout(statusResetTimer);
+  statusResetTimer = setTimeout(() => {
+    statusResetTimer = null;
+    refreshAiRoomContext();
+  }, delayMs);
 }
 
 function renderMessages() {
   const { messagesEl } = getElements();
-  if (!messagesEl) return;
-
-  updateChatLayout();
-
-  if (!messages.length && !loading) {
-    messagesEl.innerHTML = '';
-    messagesEl.classList.add('is-empty');
-    return;
-  }
-
-  messagesEl.classList.remove('is-empty');
-
-  const html = messages.map((msg) => `
-    <div class="ai-message ai-message--${msg.role}">
-      <div class="ai-message-bubble">${escapeHtml(msg.text)}</div>
-    </div>
-  `).join('');
-
-  messagesEl.innerHTML = loading
-    ? `${html}<div class="ai-message ai-message--assistant"><div class="ai-message-bubble ai-message-bubble--typing"><span></span><span></span><span></span></div></div>`
-    : html;
-
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function escapeHtml(text) {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  messagesEl?.classList.add('is-empty');
+  if (messagesEl) messagesEl.innerHTML = '';
 }
 
 function canSend() {
@@ -119,20 +99,20 @@ function finishDesign(options = {}) {
   const { message, isError = false } = options;
   pendingDesignRoomId = null;
   setLoading(false);
-  if (message) {
-    pushMessage('assistant', message);
-  } else if (isError) {
-    pushMessage('assistant', 'Could not update the layout. Please try again.');
+  const text = message || (isError ? 'Could not update the layout. Please try again.' : '');
+  if (text) {
+    showStatus(text, { busy: false });
+    scheduleStatusReset(isError ? 7000 : 5000);
+  } else {
+    refreshAiRoomContext();
   }
 }
 
 function setLoading(next) {
   loading = next;
   window._aiDesignInProgress = loading;
-  const { statusEl } = getElements();
-  if (statusEl) {
-    statusEl.textContent = loading ? 'Designing layout…' : bridge.connected ? 'Ready' : 'Connecting to SpaceFlow…';
-    statusEl.classList.toggle('ai-status--busy', loading);
+  if (loading) {
+    showStatus('Designing layout…', { busy: true });
   }
   if (loading) {
     clearDesignTimeout();
@@ -148,6 +128,8 @@ function setLoading(next) {
 }
 
 export function refreshAiRoomContext() {
+  if (loading || statusResetTimer) return;
+
   const room = indoorState.activeRoomData;
   const { roomLabel } = getElements();
   if (!roomLabel) return;
@@ -162,23 +144,17 @@ export function refreshAiRoomContext() {
     roomLabel.style.setProperty('--room-accent', room.color || '#3da9f5');
   }
 
-  searchBar?.setPlaceholder(
-    !room
-      ? 'Enter a room to use AI'
-      : !isAiSupportedRoom(room.roomId)
-        ? 'AI layout not available in this room'
-        : !bridge.connected
-          ? 'Connecting to SpaceFlow backend…'
-          : loading
-            ? 'Designing layout…'
-            : 'Design this room…',
-  );
-  searchBar?.refresh();
-}
+  const placeholder = !room
+    ? 'Enter a room to use AI'
+    : !isAiSupportedRoom(room.roomId)
+      ? 'AI layout not available in this room'
+      : !bridge.connected
+        ? 'Connecting to SpaceFlow backend…'
+        : 'Ask for anything — clear room, add chairs, office setup…';
 
-function pushMessage(role, text) {
-  messages.push({ role, text });
-  renderMessages();
+  searchBar?.setPlaceholder(placeholder);
+  searchBar?.refresh();
+  showStatus('', { busy: false });
 }
 
 function sendPrompt(rawPrompt) {
@@ -187,11 +163,11 @@ function sendPrompt(rawPrompt) {
   if (!prompt || loading || !room || !isAiSupportedRoom(room.roomId)) return;
 
   if (!bridge.connected) {
-    pushMessage('assistant', 'Not connected to SpaceFlow backend. Reconnecting…');
+    showStatus('Not connected to SpaceFlow backend. Reconnecting…', { busy: false });
+    scheduleStatusReset(6000);
     return;
   }
 
-  pushMessage('user', prompt);
   pendingDesignRoomId = room.roomId;
   setLoading(true);
 
@@ -241,15 +217,12 @@ function bindBridgeEvents() {
 
   bridge.on('AI_DESIGN_DONE', (payload) => {
     if (payload.roomId !== indoorState.activeRoomData?.roomId) return;
-    if (payload.layout_style) {
+    if (payload.layout_style === 'empty' || payload.cleared) {
+      lastLayoutStyle = null;
+    } else if (payload.layout_style) {
       lastLayoutStyle = payload.layout_style;
     }
-    let text = payload.message || 'Custom layout applied to this room.';
-    const models = payload.models_used;
-    if (Array.isArray(models) && models.length && !text.includes('Models used:') && !payload.modified) {
-      text += ` Models: ${models.join(', ')}.`;
-    }
-    finishDesign({ message: text });
+    finishDesign({ message: payload.message || 'Layout updated.' });
   });
 
   bridge.on('AI_DESIGN_ERROR', (payload) => {
@@ -279,9 +252,12 @@ export function initAiPanel() {
 }
 
 export function resetAiConversation() {
-  messages.length = 0;
   lastLayoutStyle = null;
   pendingDesignRoomId = null;
+  if (statusResetTimer) {
+    clearTimeout(statusResetTimer);
+    statusResetTimer = null;
+  }
   searchBar?.clear();
   renderMessages();
   refreshAiRoomContext();

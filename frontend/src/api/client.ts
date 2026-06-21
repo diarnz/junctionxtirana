@@ -10,6 +10,7 @@ import type {
   Asset,
   AssetAvailabilityResponse,
   AssetSummaryItem,
+  BookingPreviewResponse,
   BulkReserveResponse,
   EventRequestCreatePayload,
   EventRequestDetail,
@@ -359,6 +360,25 @@ export const layoutsApi = {
         params: { three_d_room_id: threeDRoomId },
       })
       .then((r) => r.data),
+
+  byRequest: (requestId: string) =>
+    http
+      .get<RoomLayoutResponse | null>(`/layouts/by-request/${requestId}`)
+      .then((r) => r.data),
+}
+
+export const bookingsApi = {
+  preview: (payload: {
+    three_d_room_id?: string
+    venue_id?: string
+    requested_date: string
+    start_time: string
+    end_time: string
+    event_type?: string
+    setup_time_minutes?: number
+    teardown_time_minutes?: number
+    items: unknown[]
+  }) => http.post<BookingPreviewResponse>('/bookings/preview', payload).then((r) => r.data),
 }
 
 export const aiApi = {

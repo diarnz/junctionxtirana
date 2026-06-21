@@ -3,7 +3,18 @@ import { defineStore } from 'pinia'
 
 import { useNotificationsStore } from './notifications'
 
-const baseWsUrl = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080'
+function deriveWsBase(): string {
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8082/api/v1'
+  try {
+    const url = new URL(apiBase)
+    const proto = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${url.host}`
+  } catch {
+    return 'ws://localhost:8082'
+  }
+}
+
+const baseWsUrl = import.meta.env.VITE_WS_URL ?? deriveWsBase()
 
 export const useWebsocketStore = defineStore('websocket', () => {
   const connected = ref(false)

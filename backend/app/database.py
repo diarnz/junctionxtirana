@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import app.platform  # noqa: F401 — Windows asyncio fix before engine creation
+
 from collections.abc import AsyncIterator
 from typing import Any
 

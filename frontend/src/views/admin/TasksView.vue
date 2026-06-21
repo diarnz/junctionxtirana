@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { friendlyError, tasksApi } from '@/api/client'
 import { useNotificationsStore } from '@/stores/notifications'
 import type { TaskResponse, TaskStatus } from '@/types'
@@ -54,61 +55,55 @@ onMounted(load)
 </script>
 
 <template>
-  <section v-if="loading" class="empty-state">
-    <div class="spinner" />
-  </section>
+  <section class="admin-page">
+    <p class="admin-page-intro">
+      Track operational tasks across pending, in-progress, and completed states.
+    </p>
 
-  <section v-else class="split-grid" style="grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: start;">
-    <article
-      v-for="column in columns"
-      :key="column.key"
-      class="card"
-      style="padding: var(--space-4); display: grid; gap: var(--space-3); background: var(--bg-secondary);"
-    >
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <strong>{{ column.label }}</strong>
-        <span class="badge badge-neutral">{{ grouped[column.key].length }}</span>
-      </div>
+    <EmptyState v-if="loading" title="Loading tasks…" loading />
 
-      <div v-if="!grouped[column.key].length" style="color: var(--text-tertiary); font-size: 0.85rem;">
-        No tasks here.
-      </div>
-
-      <article
-        v-for="task in grouped[column.key]"
-        :key="task.id"
-        class="card"
-        style="padding: var(--space-4); display: grid; gap: var(--space-3);"
-      >
-        <div style="display: flex; justify-content: space-between; gap: var(--space-2);">
-          <span class="badge badge-info">{{ task.task_type }}</span>
-          <span class="badge" :class="task.ai_generated ? 'badge-success' : 'badge-neutral'">
-            {{ task.ai_generated ? 'AI' : 'Manual' }}
-          </span>
+    <div v-else class="kanban">
+      <div v-for="column in columns" :key="column.key" class="kanban-col">
+        <div class="admin-section__head">
+          <h3 class="kanban-col__title">{{ column.label }}</h3>
+          <span class="badge badge-neutral">{{ grouped[column.key].length }}</span>
         </div>
 
-        <div>
-          <strong>{{ task.title }}</strong>
-          <div style="color: var(--text-secondary); margin-top: 0.25rem; font-size: 0.9rem;">
-            {{ task.event_title || 'No event title' }}
-          </div>
-        </div>
+        <p v-if="!grouped[column.key].length" class="muted">No tasks here.</p>
 
-        <div style="color: var(--text-tertiary); font-size: 0.85rem;">
-          Due {{ new Date(task.due_at).toLocaleString() }}
-        </div>
-
-        <select
-          class="select"
-          :disabled="updatingTaskId === task.id"
-          :value="task.status"
-          @change="moveTask(task, ($event.target as HTMLSelectElement).value as TaskStatus)"
+        <article
+          v-for="task in grouped[column.key]"
+          :key="task.id"
+          class="card admin-section kanban-card"
         >
-          <option v-for="option in columns" :key="option.key" :value="option.key">
-            {{ option.label }}
-          </option>
-        </select>
-      </article>
-    </article>
+          <div class="admin-section__head">
+            <span class="badge badge-info">{{ task.task_type }}</span>
+            <span class="badge" :class="task.ai_generated ? 'badge-success' : 'badge-neutral'">
+              {{ task.ai_generated ? 'AI' : 'Manual' }}
+            </span>
+          </div>
+
+          <div>
+            <strong>{{ task.title }}</strong>
+            <div class="muted">{{ task.event_title || 'No event title' }}</div>
+          </div>
+
+          <div class="muted">
+            Due {{ new Date(task.due_at).toLocaleString() }}
+          </div>
+
+          <select
+            class="select"
+            :disabled="updatingTaskId === task.id"
+            :value="task.status"
+            @change="moveTask(task, ($event.target as HTMLSelectElement).value as TaskStatus)"
+          >
+            <option v-for="option in columns" :key="option.key" :value="option.key">
+              {{ option.label }}
+            </option>
+          </select>
+        </article>
+      </div>
+    </div>
   </section>
 </template>

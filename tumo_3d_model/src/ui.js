@@ -403,10 +403,13 @@ export function enterRoom(hitObject) {
   setOutdoorNavVisible(false);
 }
 
-export function enterRoomById(roomId) {
-  if (!roomId) return false;
+export function findRoomMeshById(roomId) {
+  if (!roomId) return null;
+  return boxData.find((mesh) => mesh.userData?.roomId === roomId) ?? null;
+}
 
-  const target = scene.getObjectByProperty('userData.roomId', roomId);
+export function enterRoomById(roomId) {
+  const target = findRoomMeshById(roomId);
   if (!target) return false;
 
   enterRoom(target);

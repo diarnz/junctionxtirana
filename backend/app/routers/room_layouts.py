@@ -9,7 +9,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Venue
 from app.schemas import RoomLayoutItem, RoomLayoutResponse
-from app.services import get_current_layout, list_layouts_for_venue
+from app.services import get_current_layout, get_layout_for_request, list_layouts_for_venue
 
 
 router = APIRouter()
@@ -42,6 +42,19 @@ async def route_list_layouts(
     venue = await db.get(Venue, venue_id)
     layouts = await list_layouts_for_venue(venue_id, db)
     return [_serialize_layout(layout, venue) for layout in layouts]
+
+
+@router.get("/by-request/{request_id}", response_model=RoomLayoutResponse | None)
+async def route_get_layout_for_request(
+    request_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: object = Depends(get_current_user),
+) -> RoomLayoutResponse | None:
+    layout = await get_layout_for_request(request_id, db)
+    if not layout:
+        return None
+    venue = await db.get(Venue, layout.venue_id)
+    return _serialize_layout(layout, venue)
 
 
 @router.get("/current", response_model=RoomLayoutResponse | None)
