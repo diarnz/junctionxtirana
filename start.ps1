@@ -1,4 +1,4 @@
-# SpaceFlow — start backend, frontend, and 3D viewer in separate windows.
+# SpaceFlow - start backend, frontend, and 3D viewer in separate windows.
 # Usage: .\start.ps1
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -11,7 +11,7 @@ function Stop-Port([int]$Port) {
 }
 
 Write-Host ""
-Write-Host "SpaceFlow — starting all services" -ForegroundColor Cyan
+Write-Host "SpaceFlow - starting all services" -ForegroundColor Cyan
 Write-Host "=================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -23,7 +23,7 @@ Write-Host "Starting Backend API (port 8082)..."
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Set-Location '$Root\backend'; Write-Host 'SpaceFlow Backend — http://localhost:8082/docs' -ForegroundColor Green; python run.py"
+    "Set-Location '$Root\backend'; Write-Host 'SpaceFlow Backend - http://localhost:8082/docs' -ForegroundColor Green; python run.py"
 )
 
 Start-Sleep -Seconds 2
@@ -32,14 +32,14 @@ Write-Host "Starting Frontend (port 5173)..."
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Set-Location '$Root\frontend'; Write-Host 'SpaceFlow Frontend — http://localhost:5173' -ForegroundColor Green; npm run dev"
+    "Set-Location '$Root\frontend'; Write-Host 'SpaceFlow Frontend - http://localhost:5173' -ForegroundColor Green; npm run dev"
 )
 
 Write-Host "Starting 3D Viewer (port 3000)..."
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Set-Location '$Root\tumo_3d_model'; Write-Host 'TUMO 3D Viewer — http://localhost:3000' -ForegroundColor Green; npm start"
+    "Set-Location '$Root\tumo_3d_model'; Write-Host 'TUMO 3D Viewer - http://localhost:3000' -ForegroundColor Green; npm start"
 )
 
 Write-Host ""

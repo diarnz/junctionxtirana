@@ -702,6 +702,12 @@ def event_duration_hours(start: time, end: time) -> Decimal:
 
 
 async def generate_quotation(request_id: UUID, db: AsyncSession, *, created_by: UUID | None = None, generated_by_ai: bool = False) -> Quotation:
+    existing = await db.scalar(
+        select(Quotation).where(Quotation.event_request_id == request_id).order_by(desc(Quotation.created_at))
+    )
+    if existing:
+        return existing
+
     req = await get_request(request_id, db)
     line_items: list[QuotationLineItem] = []
 

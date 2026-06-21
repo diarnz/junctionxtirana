@@ -18,7 +18,6 @@ const InventoryView = () => import('@/views/admin/InventoryView.vue')
 const CalendarView = () => import('@/views/admin/CalendarView.vue')
 const QuotationsView = () => import('@/views/admin/QuotationsView.vue')
 const TasksView = () => import('@/views/admin/TasksView.vue')
-const VisualizationView = () => import('@/views/admin/VisualizationView.vue')
 const SpecSheetView = () => import('@/views/admin/SpecSheetView.vue')
 
 const router = createRouter({
@@ -128,12 +127,6 @@ const router = createRouter({
           name: 'admin-tasks',
           component: TasksView,
           meta: { title: 'SpaceFlow - Tasks' },
-        },
-        {
-          path: 'visualization',
-          name: 'admin-visualization',
-          component: VisualizationView,
-          meta: { title: 'SpaceFlow - 3D Visualization' },
         },
       ],
     },

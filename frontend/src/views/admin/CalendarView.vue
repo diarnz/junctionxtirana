@@ -21,15 +21,27 @@ function venueColor(name: string | null) {
 
 const calendarOptions = computed(() => ({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
-  initialView: 'timeGridWeek',
+  initialView: 'dayGridMonth',
   height: 'auto',
+  contentHeight: 'auto',
   allDaySlot: false,
-  slotMinTime: '07:00:00',
-  slotMaxTime: '23:00:00',
+  slotMinTime: '08:00:00',
+  slotMaxTime: '22:00:00',
+  slotLabelInterval: '01:00',
+  slotLabelFormat: {
+    meridiem: 'short',
+  },
+  eventDisplay: 'block',
+  eventTimeFormat: {
+    hour: 'numeric',
+    minute: '2-digit',
+    meridiem: 'short',
+    omitZeroMinute: true,
+  },
   headerToolbar: {
-    left: 'prev,next today',
+    left: 'prev,next',
     center: 'title',
-    right: 'dayGridMonth,timeGridWeek,timeGridDay',
+    right: 'dayGridMonth,timeGridWeek',
   },
   events: async (
     _info: unknown,
@@ -78,7 +90,93 @@ const calendarOptions = computed(() => ({
         </div>
       </div>
 
-      <FullCalendar :options="calendarOptions" />
+      <div class="calendar-wrapper">
+        <FullCalendar :options="calendarOptions" />
+      </div>
     </article>
   </section>
 </template>
+
+<style scoped>
+.calendar-wrapper {
+  padding: var(--space-3);
+}
+
+:deep(.fc) {
+  font-size: 0.875rem;
+}
+
+:deep(.fc .fc-button-primary) {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+:deep(.fc .fc-button-primary:not(:disabled):hover) {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+:deep(.fc .fc-button-primary.fc-button-active) {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+:deep(.fc-toolbar) {
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+:deep(.fc-toolbar-chunk) {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+:deep(.fc-toolbar-title) {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+:deep(.fc-daygrid-day) {
+  padding: 0;
+}
+
+:deep(.fc-daygrid-day-frame) {
+  min-height: 100px;
+}
+
+:deep(.fc-daygrid-day-number) {
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.75rem;
+}
+
+:deep(.fc-col-header-cell) {
+  padding: var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+:deep(.fc-event) {
+  margin: 2px 2px;
+  border-radius: 3px;
+}
+
+:deep(.fc-event-title) {
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:deep(.fc-timegrid-event-harness) {
+  font-size: 0.7rem;
+}
+
+:deep(.fc-event.fc-event-start.fc-event-end) {
+  border-width: 2px;
+}
+</style>
