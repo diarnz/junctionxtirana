@@ -103,7 +103,10 @@ class SpaceFlowBridge {
         applyLayoutFromPlan(payload.items, { relocate: true, source: payload.source });
       } else {
         window._pendingBridgeLayouts = window._pendingBridgeLayouts || {};
-        window._pendingBridgeLayouts[payload.roomId] = payload.items;
+        window._pendingBridgeLayouts[payload.roomId] = {
+          items: payload.items,
+          source: payload.source,
+        };
       }
       this.emit('APPLY_LAYOUT', payload);
       return;
@@ -117,8 +120,11 @@ class SpaceFlowBridge {
 
   applyPendingLayout(roomId) {
     const pending = window._pendingBridgeLayouts?.[roomId];
-    if (roomId && Array.isArray(pending)) {
-      applyLayoutFromPlan(pending, { relocate: true });
+    if (roomId && pending) {
+      const items = Array.isArray(pending) ? pending : pending.items;
+      const source = Array.isArray(pending) ? undefined : pending.source;
+      if (!Array.isArray(items)) return;
+      applyLayoutFromPlan(items, { relocate: true, source });
       delete window._pendingBridgeLayouts[roomId];
     }
   }

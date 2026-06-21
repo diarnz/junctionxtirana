@@ -25,6 +25,7 @@ from app.models import (
 from app.schemas import (
     AssetAvailabilityResponse,
     AssetCreateRequest,
+    AssetQuantityUpdateRequest,
     AssetSummaryItem,
     AvailableSlot,
     BulkReserveRequest,
@@ -589,6 +590,18 @@ async def list_assets(db: AsyncSession, *, category: str | None = None, active_o
 async def create_asset(data: AssetCreateRequest, db: AsyncSession) -> Asset:
     asset = Asset(**data.model_dump())
     db.add(asset)
+    await db.commit()
+    await db.refresh(asset)
+    return asset
+
+
+async def update_asset_quantity(
+    asset_id: UUID,
+    data: AssetQuantityUpdateRequest,
+    db: AsyncSession,
+) -> Asset:
+    asset = await get_asset(asset_id, db)
+    asset.total_quantity = data.total_quantity
     await db.commit()
     await db.refresh(asset)
     return asset

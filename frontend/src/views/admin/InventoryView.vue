@@ -6,10 +6,14 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import { assetsApi, friendlyError } from '@/api/client'
 import { useAssetsStore } from '@/stores/assets'
 import { useNotificationsStore } from '@/stores/notifications'
+import type { Asset } from '@/types'
 
 const assets = useAssetsStore()
 const notifications = useNotificationsStore()
 const category = ref('')
+const editingAsset = ref<Asset | null>(null)
+const quantityInput = ref<number | null>(null)
+const savingQuantity = ref(false)
 
 const categories = [
   { value: '', label: 'All' },
@@ -86,6 +90,41 @@ async function checkRange() {
 function clearRange() {
   rangeActive.value = false
   rangeAvail.value = {}
+}
+
+function openQuantityEditor(asset: Asset) {
+  editingAsset.value = asset
+  quantityInput.value = asset.total_quantity
+}
+
+function closeQuantityEditor() {
+  if (savingQuantity.value) return
+  editingAsset.value = null
+  quantityInput.value = null
+}
+
+async function saveQuantity() {
+  if (!editingAsset.value || quantityInput.value === null || quantityInput.value < 0) return
+
+  savingQuantity.value = true
+  try {
+    const previousQuantity = editingAsset.value.total_quantity
+    const updated = await assetsApi.updateQuantity(editingAsset.value.id, quantityInput.value)
+    assets.replaceAsset(updated)
+    await assets.fetchSummary()
+    rangeActive.value = false
+    rangeAvail.value = {}
+    notifications.push(
+      `${updated.name} quantity changed from ${previousQuantity} to ${updated.total_quantity}.`,
+      'success',
+    )
+    editingAsset.value = null
+    quantityInput.value = null
+  } catch (err) {
+    notifications.push(friendlyError(err, 'Could not update asset quantity.'), 'error')
+  } finally {
+    savingQuantity.value = false
+  }
 }
 
 const rangeConflicts = computed(() =>
@@ -204,7 +243,72 @@ onMounted(async () => {
             {{ reservedFor(asset.id) }} reserved
           </span>
         </div>
+
+        <button
+          type="button"
+          class="button button-secondary button-block"
+          @click="openQuantityEditor(asset)"
+        >
+          Edit total quantity
+        </button>
       </article>
+    </div>
+
+    <div
+      v-if="editingAsset"
+      class="modal-backdrop"
+      role="presentation"
+      @click.self="closeQuantityEditor"
+    >
+      <section class="modal-card inventory-modal" role="dialog" aria-modal="true" aria-labelledby="quantity-editor-title">
+        <div class="modal-header">
+          <div>
+            <strong id="quantity-editor-title">Edit asset quantity</strong>
+            <p>{{ editingAsset.name }}</p>
+          </div>
+          <button type="button" class="button button-ghost" aria-label="Close" @click="closeQuantityEditor">
+            ×
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="quantity-summary">
+            <span>Current total</span>
+            <strong>{{ editingAsset.total_quantity }}</strong>
+          </div>
+
+          <label class="field">
+            <span class="field-label">New overall quantity</span>
+            <input
+              v-model.number="quantityInput"
+              type="number"
+              min="0"
+              step="1"
+              class="input quantity-input"
+              inputmode="numeric"
+              autofocus
+              @keyup.enter="saveQuantity"
+            />
+            <small>
+              Enter the final total after stock is added, removed, damaged, or retired.
+            </small>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="button button-secondary" :disabled="savingQuantity" @click="closeQuantityEditor">
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="button button-primary"
+            :disabled="savingQuantity || quantityInput === null || quantityInput < 0"
+            @click="saveQuantity"
+          >
+            {{ savingQuantity ? 'Saving…' : 'Save quantity' }}
+          </button>
+        </div>
+      </section>
     </div>
   </section>
 </template>
@@ -275,5 +379,43 @@ onMounted(async () => {
   align-items: center;
   gap: var(--space-3);
   font-size: 0.9rem;
+}
+
+.inventory-modal {
+  width: min(460px, calc(100vw - var(--space-6)));
+}
+
+.modal-header p {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.quantity-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.quantity-summary strong {
+  color: var(--text-primary);
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quantity-input {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.field small {
+  color: var(--text-tertiary);
+  line-height: 1.45;
 }
 </style>

@@ -240,6 +240,44 @@ onMounted(loadDetail)
 
     <section class="request-detail__section admin-section">
       <div class="admin-section__head">
+        <div>
+          <h2 class="admin-section__title">Client layout</h2>
+          <p class="section-copy">
+            {{ layout ? `${layout.item_count} items · ${layout.source.replaceAll('_', ' ')}` : 'No saved layout yet' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="split-grid two-col">
+        <article class="card detail-panel">
+          <h3 class="admin-section__title">Layout visuals</h3>
+          <LayoutCapture
+            :items="layout?.items_json ?? []"
+            :room-id="layout?.three_d_room_id ?? requestDetail.venue?.three_d_room_id"
+            :plan-image="layout?.thumbnail_url ?? null"
+          />
+        </article>
+
+        <article class="card detail-panel">
+          <h3 class="admin-section__title">Layout breakdown</h3>
+          <div v-if="!layoutCounts.length" class="muted">
+            The client has not placed any furniture yet.
+          </div>
+          <div v-else class="detail-breakdown">
+            <div v-for="entry in layoutCounts" :key="entry.modelKey" class="detail-breakdown__row">
+              <span class="detail-breakdown__label">
+                <span class="detail-breakdown__swatch" :style="{ background: entry.color }" />
+                {{ entry.label }}
+              </span>
+              <strong>×{{ entry.count }}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="request-detail__section admin-section">
+      <div class="admin-section__head">
         <h2 class="admin-section__title">Conflict detection</h2>
         <button type="button" class="button button-secondary" :disabled="actioning" @click="runConflictAgent">
           Run AI conflict check
@@ -329,44 +367,6 @@ onMounted(loadDetail)
           <div class="detail-list__aside">
             <div class="muted detail-list__aside-label">Priority</div>
             <strong class="text-capitalize">{{ task.priority }}</strong>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="request-detail__section admin-section">
-      <div class="admin-section__head">
-        <div>
-          <h2 class="admin-section__title">Client layout</h2>
-          <p class="section-copy">
-            {{ layout ? `${layout.item_count} items · ${layout.source.replaceAll('_', ' ')}` : 'No saved layout yet' }}
-          </p>
-        </div>
-      </div>
-
-      <div class="split-grid two-col">
-        <article class="card detail-panel">
-          <h3 class="admin-section__title">Layout visuals</h3>
-          <LayoutCapture
-            :items="layout?.items_json ?? []"
-            :room-id="layout?.three_d_room_id ?? requestDetail.venue?.three_d_room_id"
-            :plan-image="layout?.thumbnail_url ?? null"
-          />
-        </article>
-
-        <article class="card detail-panel">
-          <h3 class="admin-section__title">Layout breakdown</h3>
-          <div v-if="!layoutCounts.length" class="muted">
-            The client has not placed any furniture yet.
-          </div>
-          <div v-else class="detail-breakdown">
-            <div v-for="entry in layoutCounts" :key="entry.modelKey" class="detail-breakdown__row">
-              <span class="detail-breakdown__label">
-                <span class="detail-breakdown__swatch" :style="{ background: entry.color }" />
-                {{ entry.label }}
-              </span>
-              <strong>×{{ entry.count }}</strong>
-            </div>
           </div>
         </article>
       </div>

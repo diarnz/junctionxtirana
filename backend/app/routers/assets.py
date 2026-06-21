@@ -9,8 +9,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import require_admin, require_staff
 from app.models import User
-from app.schemas import AssetAvailabilityResponse, AssetCreateRequest, AssetResponse, AssetSummaryItem
-from app.services import create_asset, get_asset, get_asset_availability, get_assets_summary, list_assets
+from app.schemas import (
+    AssetAvailabilityResponse,
+    AssetCreateRequest,
+    AssetQuantityUpdateRequest,
+    AssetResponse,
+    AssetSummaryItem,
+)
+from app.services import (
+    create_asset,
+    get_asset,
+    get_asset_availability,
+    get_assets_summary,
+    list_assets,
+    update_asset_quantity,
+)
 
 
 router = APIRouter()
@@ -35,6 +48,16 @@ async def route_get_assets_summary(
 @router.get("/{asset_id}", response_model=AssetResponse)
 async def route_get_asset(asset_id: UUID, db: AsyncSession = Depends(get_db)) -> AssetResponse:
     return AssetResponse.model_validate(await get_asset(asset_id, db))
+
+
+@router.patch("/{asset_id}/quantity", response_model=AssetResponse)
+async def route_update_asset_quantity(
+    asset_id: UUID,
+    data: AssetQuantityUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> AssetResponse:
+    return AssetResponse.model_validate(await update_asset_quantity(asset_id, data, db))
 
 
 @router.get("/{asset_id}/availability", response_model=AssetAvailabilityResponse)

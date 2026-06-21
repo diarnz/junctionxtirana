@@ -274,6 +274,11 @@ export const assetsApi = {
   get: (assetId: string) =>
     http.get<Asset>(`/assets/${assetId}`).then((r) => r.data),
 
+  updateQuantity: (assetId: string, totalQuantity: number) =>
+    http
+      .patch<Asset>(`/assets/${assetId}/quantity`, { total_quantity: totalQuantity })
+      .then((r) => r.data),
+
   availability: (assetId: string, start: string, end: string) =>
     http
       .get<AssetAvailabilityResponse>(`/assets/${assetId}/availability`, {

@@ -23,6 +23,7 @@ const props = withDefaults(
 const threeDUrl = import.meta.env.VITE_THREE_D_URL ?? 'http://localhost:3000'
 
 const plan2d = ref<string | null>(null)
+const snapshot3d = ref<string | null>(null)
 const planLoading = ref(false)
 const showcaseLoading = ref(true)
 
@@ -31,7 +32,6 @@ const showcaseFrame = ref<HTMLIFrameElement | null>(null)
 let planReadyHandler: ((e: MessageEvent) => void) | null = null
 let showcaseReadyHandler: ((e: MessageEvent) => void) | null = null
 let planRetryTimer: ReturnType<typeof setTimeout> | null = null
-let showcaseRetryTimer: ReturnType<typeof setTimeout> | null = null
 
 const planViewUrl = computed(() => {
   if (!props.roomId) return ''
@@ -65,22 +65,20 @@ function sendPlanItems() {
 function sendShowcaseItems() {
   if (!showcaseFrame.value?.contentWindow || !props.roomId) return
   showcaseFrame.value.contentWindow.postMessage(
-    { type: 'SET_PLAN_ITEMS', payload: { roomId: props.roomId, items: cloneItems() } },
+    { type: 'CAPTURE_LAYOUT', payload: { roomId: props.roomId, items: cloneItems() } },
     '*',
   )
 }
 
-function scheduleRetries(send: () => void, timerRef: 'plan' | 'showcase') {
-  const existing = timerRef === 'plan' ? planRetryTimer : showcaseRetryTimer
-  if (existing) clearTimeout(existing)
+function schedulePlanRetries() {
+  if (planRetryTimer) clearTimeout(planRetryTimer)
   let attempt = 0
   const tick = () => {
-    send()
+    sendPlanItems()
     attempt += 1
     if (attempt < 10) {
       const t = setTimeout(tick, 500 * attempt)
-      if (timerRef === 'plan') planRetryTimer = t
-      else showcaseRetryTimer = t
+      planRetryTimer = t
     }
   }
   tick()
@@ -98,30 +96,38 @@ function setupListeners() {
 
   if (showcaseReadyHandler) window.removeEventListener('message', showcaseReadyHandler)
   showcaseReadyHandler = (event: MessageEvent) => {
-    if (event.data?.type !== 'SHOWCASE_VIEW_READY') return
-    if (event.data.payload?.roomId && event.data.payload.roomId !== props.roomId) return
-    showcaseLoading.value = false
-    sendShowcaseItems()
+    if (event.source !== showcaseFrame.value?.contentWindow) return
+    if (event.data?.payload?.roomId && event.data.payload.roomId !== props.roomId) return
+
+    if (event.data?.type === 'SHOWCASE_VIEW_READY') {
+      sendShowcaseItems()
+      return
+    }
+
+    if (event.data?.type === 'LAYOUT_CAPTURE_RESULT') {
+      snapshot3d.value = event.data.payload?.snapshot3d ?? null
+      showcaseLoading.value = false
+    }
   }
   window.addEventListener('message', showcaseReadyHandler)
 }
 
 function onPlanFrameLoad() {
   planLoading.value = true
-  scheduleRetries(sendPlanItems, 'plan')
+  schedulePlanRetries()
 }
 
 function onShowcaseFrameLoad() {
   showcaseLoading.value = true
-  scheduleRetries(sendShowcaseItems, 'showcase')
 }
 
 function refresh() {
   plan2d.value = props.planImage ?? null
+  snapshot3d.value = null
   planLoading.value = Boolean(props.roomId && !plan2dDisplay.value)
   showcaseLoading.value = Boolean(props.roomId)
-  scheduleRetries(sendPlanItems, 'plan')
-  scheduleRetries(sendShowcaseItems, 'showcase')
+  schedulePlanRetries()
+  sendShowcaseItems()
 }
 
 onMounted(() => {
@@ -133,7 +139,6 @@ onBeforeUnmount(() => {
   if (planReadyHandler) window.removeEventListener('message', planReadyHandler)
   if (showcaseReadyHandler) window.removeEventListener('message', showcaseReadyHandler)
   if (planRetryTimer) clearTimeout(planRetryTimer)
-  if (showcaseRetryTimer) clearTimeout(showcaseRetryTimer)
 })
 
 watch(
@@ -173,11 +178,17 @@ watch(
       <figure v-if="show3d" class="lc__panel">
         <figcaption class="lc__cap">3D view from inside</figcaption>
         <div class="lc__media lc__media--3d">
+          <img
+            v-if="snapshot3d"
+            :src="snapshot3d"
+            alt="3D room layout"
+            class="lc__snapshot-img"
+          />
           <iframe
             v-if="roomId"
             ref="showcaseFrame"
             :src="showcaseViewUrl"
-            class="lc__embed-frame"
+            class="lc__capture-frame"
             title="3D room showcase"
             @load="onShowcaseFrameLoad"
           />
@@ -263,9 +274,27 @@ watch(
   object-fit: contain;
   display: block;
 }
+.lc__snapshot-img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.lc__capture-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
 .lc__overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   background: rgba(8, 8, 12, 0.55);

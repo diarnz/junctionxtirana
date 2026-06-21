@@ -1828,7 +1828,10 @@ export function applyLayoutFromPlan(items, options = {}) {
   clearSelectionHighlight();
   deselectModel();
   if (!options.skipPersist) {
-    persistLayout({ skipBridge: options.source === 'ai_agent' });
+    // Layouts received from the backend are synchronization events, not user
+    // edits. Cache them locally without sending LAYOUT_SAVED back and creating
+    // an APPLY_LAYOUT -> LAYOUT_SAVED feedback loop.
+    persistLayout({ skipBridge: Boolean(options.source) });
   }
   updatePlacedCount();
 }
@@ -1867,4 +1870,3 @@ export function exitFurnishingMode() {
 
   return snapshot;
 }
-

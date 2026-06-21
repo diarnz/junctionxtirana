@@ -297,6 +297,10 @@ class AssetCreateRequest(BaseModel):
     three_d_item_key: ThreeDItemKey | None = None
 
 
+class AssetQuantityUpdateRequest(BaseModel):
+    total_quantity: int = Field(ge=0)
+
+
 class AssetAvailabilityResponse(BaseModel):
     asset_id: UUID
     asset_name: str

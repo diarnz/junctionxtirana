@@ -33,6 +33,11 @@ export const useAssetsStore = defineStore('assets', () => {
     }
   }
 
+  function replaceAsset(updated: Asset) {
+    const index = items.value.findIndex((item) => item.id === updated.id)
+    if (index >= 0) items.value[index] = updated
+  }
+
   return {
     items,
     summary,
@@ -40,5 +45,6 @@ export const useAssetsStore = defineStore('assets', () => {
     totalUnits,
     fetchAll,
     fetchSummary,
+    replaceAsset,
   }
 })
