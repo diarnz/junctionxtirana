@@ -10,6 +10,7 @@ frontend/.env
 **/.mypy_cache/
 **/.venv/
 **/venv/
+**/.venv312/
 
 # Local databases and generated backend data
 backend/data/
