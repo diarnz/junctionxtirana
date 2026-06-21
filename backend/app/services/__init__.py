@@ -46,7 +46,10 @@ from app.schemas import (
 from app.utils.auth import hash_password, verify_password
 
 
-BOOKED_REQUEST_STATUSES = {"approved", "confirmed"}
+# Statuses where a venue/asset reservation is considered active and blocks other bookings
+BOOKED_REQUEST_STATUSES = {"under_review", "quotation_sent", "approved", "confirmed", "completed"}
+# Alias for conflict checks: anything that is not cancelled/rejected/draft
+ACTIVE_CONFLICT_STATUSES = {"submitted", "under_review", "quotation_sent", "approved", "confirmed", "completed"}
 
 THREE_D_ROOM_DIMENSIONS: dict[str, dict[str, float]] = {
     "lime-green-box": {"w": 5.5, "d": 3.2, "h": 2.6},
@@ -599,7 +602,9 @@ async def get_reserved_quantity(
     *,
     exclude_request_id: UUID | None = None,
 ) -> int:
-    stmt = select(func.coalesce(func.sum(AssetReservation.quantity_confirmed), 0)).where(
+    # Use quantity_requested (not quantity_confirmed) so that over-booked assets
+    # still count as fully consumed and trigger conflicts for subsequent requests.
+    stmt = select(func.coalesce(func.sum(AssetReservation.quantity_requested), 0)).where(
         AssetReservation.asset_id == asset_id,
         AssetReservation.status.in_(["pending", "confirmed"]),
         AssetReservation.reservation_start < end,
@@ -754,15 +759,23 @@ async def check_conflicts(request_id: UUID, db: AsyncSession) -> list[Conflict]:
             EventRequest.venue_id == req.venue_id,
             EventRequest.id != req.id,
             EventRequest.requested_date == req.requested_date,
-            EventRequest.status.in_(BOOKED_REQUEST_STATUSES),
+            # Use broad active statuses — any non-cancelled/rejected/draft request
+            # can block the venue.
+            EventRequest.status.in_(ACTIVE_CONFLICT_STATUSES),
         )
+        overlapping_venue: list[EventRequest] = []
         for other in list((await db.scalars(same_day_stmt)).all()):
             if times_overlap(req.start_time, req.end_time, other.start_time, other.end_time):
+                overlapping_venue.append(other)
                 conflicts.append(
                     Conflict(
                         type="venue_double_booking",
                         severity="blocking",
-                        description=f"Venue already booked for '{other.title}' ({other.start_time:%H:%M}-{other.end_time:%H:%M}).",
+                        description=(
+                            f"Venue already booked for '{other.title}' "
+                            f"({other.start_time:%H:%M}–{other.end_time:%H:%M}) "
+                            f"[{other.status}]."
+                        ),
                         affected_request_ids=[str(other.id)],
                         suggestion="Choose another venue or move the request to a different time slot.",
                     )
@@ -775,12 +788,37 @@ async def check_conflicts(request_id: UUID, db: AsyncSession) -> list[Conflict]:
                         Conflict(
                             type="setup_teardown_overlap",
                             severity="warning",
-                            description=f"Setup/teardown window overlaps with '{other.title}'.",
+                            description=(
+                                f"Setup/teardown window overlaps with '{other.title}' "
+                                f"[{other.status}]."
+                            ),
                             affected_request_ids=[str(other.id)],
                             suggestion="Reduce buffer windows or insert more time between events.",
                         )
                     )
 
+        # Venue capacity check: combined attendees across overlapping events
+        if overlapping_venue and req.venue and req.venue.capacity_max:
+            combined = req.attendee_count + sum(o.attendee_count for o in overlapping_venue)
+            if combined > req.venue.capacity_max:
+                conflicts.append(
+                    Conflict(
+                        type="venue_capacity_exceeded",
+                        severity="blocking",
+                        description=(
+                            f"Combined attendees ({combined}) across overlapping events "
+                            f"exceed venue capacity ({req.venue.capacity_max})."
+                        ),
+                        affected_request_ids=[str(o.id) for o in overlapping_venue],
+                        suggestion=(
+                            f"Move one or more events to reduce concurrent attendees "
+                            f"below {req.venue.capacity_max}."
+                        ),
+                    )
+                )
+
+    # Asset conflict check — uses quantity_requested so that even assets that
+    # were 'confirmed=0' at reservation time still count as consumed.
     reservations = await list_reservations_for_request(req.id, db)
     for reservation in reservations:
         asset = await get_asset(reservation.asset_id, db)
@@ -797,31 +835,47 @@ async def check_conflicts(request_id: UUID, db: AsyncSession) -> list[Conflict]:
                 Conflict(
                     type="asset_over_reservation",
                     severity="blocking",
-                    description=f"Asset '{asset.name}' requested: {reservation.quantity_requested}, available: {available}.",
+                    description=(
+                        f"Asset '{asset.name}': requested {reservation.quantity_requested}, "
+                        f"only {available} available (total {asset.total_quantity}, "
+                        f"{other_reserved} reserved by other events)."
+                    ),
                     affected_request_ids=[],
                     affected_asset_id=str(asset.id),
                     asset_name=asset.name,
                     available=available,
                     requested=reservation.quantity_requested,
-                    suggestion=f"Reduce allocation to {available} or substitute with a different asset type.",
+                    suggestion=(
+                        f"Reduce allocation to {available} or substitute with a different asset type."
+                    ),
                 )
             )
 
+    # Staff double-assignment: check time overlap, not just same day
     if req.assigned_staff_id:
         staff_stmt = select(EventRequest).where(
             EventRequest.assigned_staff_id == req.assigned_staff_id,
             EventRequest.id != req.id,
             EventRequest.requested_date == req.requested_date,
-            EventRequest.status.in_(BOOKED_REQUEST_STATUSES),
+            EventRequest.status.in_(ACTIVE_CONFLICT_STATUSES),
         )
-        others = list((await db.scalars(staff_stmt)).all())
-        if others:
+        overlapping_staff = [
+            other
+            for other in list((await db.scalars(staff_stmt)).all())
+            if times_overlap(req.start_time, req.end_time, other.start_time, other.end_time)
+        ]
+        if overlapping_staff:
             conflicts.append(
                 Conflict(
                     type="staff_double_assignment",
                     severity="warning",
-                    description="Assigned staff member already has another active event on the same day.",
-                    affected_request_ids=[str(other.id) for other in others],
+                    description=(
+                        "Assigned staff member is already assigned to another overlapping event "
+                        f"on the same day: "
+                        + ", ".join(f"'{o.title}'" for o in overlapping_staff)
+                        + "."
+                    ),
+                    affected_request_ids=[str(o.id) for o in overlapping_staff],
                     suggestion="Reassign staff or rebalance operational load.",
                 )
             )
@@ -1139,7 +1193,17 @@ async def save_ai_layout(
     return layout
 
 
-def build_request_summary(req: EventRequest) -> EventRequestSummary:
+def build_request_summary(req: EventRequest, *, has_conflicts: bool | None = None) -> EventRequestSummary:
+    """Build a summary DTO for an EventRequest.
+
+    ``has_conflicts`` can be pre-computed by the caller (e.g. via a live
+    ``check_conflicts`` call). When omitted we fall back to the stale snapshot
+    stored in ``ai_proposal_json`` so that the function remains usable in
+    contexts where a DB round-trip is too expensive.
+    """
+    if has_conflicts is None:
+        # Fallback: use the last stored conflict snapshot.
+        has_conflicts = bool(req.ai_proposal_json and req.ai_proposal_json.get("conflicts"))
     return EventRequestSummary(
         id=req.id,
         title=req.title,
@@ -1154,7 +1218,7 @@ def build_request_summary(req: EventRequest) -> EventRequestSummary:
         client_id=req.client_id,
         client_name=req.client.full_name if req.client else None,
         has_ai_proposal=req.ai_proposal_json is not None,
-        has_conflicts=bool(req.ai_proposal_json and req.ai_proposal_json.get("conflicts")),
+        has_conflicts=has_conflicts,
         created_at=req.created_at,
     )
 

@@ -102,8 +102,14 @@ async def route_list_requests(
         limit=limit,
         offset=offset,
     )
+    # Compute has_conflicts live so that new bookings immediately surface conflicts
+    # without waiting for the AI intake re-run.
+    items = []
+    for req in rows:
+        live_conflicts = await check_conflicts(req.id, db)
+        items.append(build_request_summary(req, has_conflicts=bool(live_conflicts)))
     return PaginatedResponse(
-        items=[build_request_summary(req) for req in rows],
+        items=items,
         total=total,
         limit=limit,
         offset=offset,
