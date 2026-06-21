@@ -68,8 +68,6 @@ function updateSections() {
 function updateSectionViews() {
   const panel = document.getElementById('furniture-panel');
   const aiDock = document.getElementById('ai-dock');
-  const sectionNav = document.getElementById('furnish-section-nav');
-  const headerRow = document.querySelector('.furnish-header-row');
 
   document.getElementById('furnish-section-booking')?.classList.toggle('hidden', activeSection !== 'booking');
   document.getElementById('furnish-section-templates')?.classList.toggle('hidden', activeSection !== 'templates');
@@ -80,17 +78,7 @@ function updateSectionViews() {
   aiDock?.classList.toggle('hidden', !isAi);
   panel?.classList.toggle('furnish-mode-ai', isAi);
   panel?.classList.toggle('furnish-mode-catalog', !isAi);
-
-  if (sectionNav && headerRow) {
-    const body = panel?.querySelector('.furnish-body');
-    if (isAi) {
-      if (body && aiDock) body.insertBefore(sectionNav, aiDock);
-      sectionNav.classList.add('furnish-sections--floating');
-    } else {
-      headerRow.appendChild(sectionNav);
-      sectionNav.classList.remove('furnish-sections--floating');
-    }
-  }
+  panel?.classList.toggle('furnish-mode-build', activeSection === 'customize');
 
   document.body.classList.toggle('furnish-mode-build', activeSection === 'customize');
 }
