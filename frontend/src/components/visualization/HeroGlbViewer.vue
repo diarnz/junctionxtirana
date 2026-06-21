@@ -48,7 +48,7 @@ const mouseTarget = { x: 0, y: 0 }
 const mouseCurrent = { x: 0, y: 0 }
 const PARALLAX_MOVE = 0.022
 const PARALLAX_TILT = 0.016
-const PARALLAX_LERP = 0.035
+const PARALLAX_LERP = 0.06
 
 function applyModelTransform() {
   if (!modelPivot) return

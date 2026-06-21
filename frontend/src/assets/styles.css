@@ -1710,6 +1710,11 @@ h4 {
   background: var(--bg-secondary);
 }
 
+/* Add padding between sidebar nav and topbar height so pages don't feel cramped */
+.admin-main {
+  padding: var(--space-8);
+}
+
 .admin-content-shell {
   min-height: 100vh;
   display: flex;
@@ -1729,10 +1734,6 @@ h4 {
   position: sticky;
   top: 0;
   z-index: 10;
-}
-
-.admin-main {
-  padding: var(--space-8);
 }
 
 .status-pill {
@@ -1906,5 +1907,36 @@ h4 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   GLOBAL UTILITY ADDITIONS
+   ========================================================= */
+
+/* Numeric data should always use tabular figures */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth section transitions for admin pages */
+.admin-page > * {
+  animation: fadeUp 0.4s var(--ease-out) both;
+}
+.admin-page > *:nth-child(2) { animation-delay: 0.04s; }
+.admin-page > *:nth-child(3) { animation-delay: 0.08s; }
+.admin-page > *:nth-child(4) { animation-delay: 0.12s; }
+.admin-page > *:nth-child(5) { animation-delay: 0.16s; }
+
+/* Consistent section spacing inside admin pages */
+.admin-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Better admin stat value sizing on small screens */
+@media (max-width: 640px) {
+  .admin-stat__value {
+    font-size: 1.4rem;
   }
 }

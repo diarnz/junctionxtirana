@@ -101,7 +101,7 @@ onMounted(loadRequests)
           <ThreeDBookingLink class="button button-primary">Book a space</ThreeDBookingLink>
         </EmptyState>
 
-        <div v-else class="split-grid three-col">
+        <div v-else class="requests-grid">
           <RequestCard
             v-for="request in requests"
             :key="request.id"
@@ -114,3 +114,21 @@ onMounted(loadRequests)
     </section>
   </div>
 </template>
+
+<style scoped>
+.requests-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+@media (max-width: 1024px) {
+  .requests-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .requests-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

@@ -24,55 +24,113 @@ body {
 #canvas-container { width: 100vw; height: 100vh; }
 canvas { display: block; }
 
-/* ─── App header — glowy logo only ─── */
-.app-header {
+/* ─── App navbar (top, glass) ─── */
+.app-navbar {
   position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 10;
-  padding: 0;
-  background: none;
-  border: none;
-  box-shadow: none;
-  backdrop-filter: none;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--shell-bg);
+  backdrop-filter: var(--shell-blur);
+  border-bottom: 1px solid var(--shell-border);
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out);
+  pointer-events: none;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.28);
 }
 
-body.app-ready .app-header {
+body.app-ready .app-navbar {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
-.app-logo-glow {
+.app-navbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* SpaceFlo logo image */
+.app-navbar__sf-logo-img {
   display: block;
-  height: 32px;
+  height: 30px;
   width: auto;
-  mix-blend-mode: screen;
-  filter:
-    drop-shadow(0 0 6px rgba(255, 150, 50, 0.95))
-    drop-shadow(0 0 14px rgba(255, 110, 0, 0.65))
-    drop-shadow(0 0 28px rgba(255, 140, 40, 0.35));
-  animation: app-logo-pulse 2.4s ease-in-out infinite;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
-@keyframes app-logo-pulse {
-  0%, 100% {
-    filter:
-      drop-shadow(0 0 6px rgba(255, 150, 50, 0.9))
-      drop-shadow(0 0 14px rgba(255, 110, 0, 0.55))
-      drop-shadow(0 0 26px rgba(255, 140, 40, 0.3));
-    opacity: 0.92;
-  }
-  50% {
-    filter:
-      drop-shadow(0 0 10px rgba(255, 170, 60, 1))
-      drop-shadow(0 0 22px rgba(255, 120, 0, 0.75))
-      drop-shadow(0 0 38px rgba(255, 160, 50, 0.45));
-    opacity: 1;
-  }
+.app-navbar__divider {
+  width: 1px;
+  height: 18px;
+  background: var(--shell-border);
+  border-radius: 1px;
+}
+
+.app-navbar__campus {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.48);
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+}
+
+.app-navbar__context {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.01em;
+}
+
+.app-navbar__context svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+#app-navbar-room {
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.app-navbar__end {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.app-navbar__back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  white-space: nowrap;
+}
+
+.app-navbar__back-link:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 /* ─── Nav hint ─── */
@@ -119,12 +177,11 @@ body.app-ready .nav-hint:not(.hidden) {
   left: 50%;
   transform: translateX(-50%) translateY(10px);
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   z-index: 10;
-  flex-wrap: wrap;
-  justify-content: center;
   max-width: calc(100vw - 32px);
-  padding: 6px;
+  padding: 5px 8px;
   border-radius: 999px;
   background: var(--shell-bg);
   backdrop-filter: var(--shell-blur);
@@ -132,6 +189,25 @@ body.app-ready .nav-hint:not(.hidden) {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
   opacity: 0;
   transition: opacity 0.55s var(--ease-out) 0.2s, transform 0.55s var(--ease-out) 0.2s;
+}
+
+.floor-nav-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 6px 0 4px;
+  user-select: none;
+}
+
+.floor-nav-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--shell-border);
+  border-radius: 1px;
+  margin: 0 2px;
+  flex-shrink: 0;
 }
 
 body.app-ready #controls-hint:not(.hidden) {
@@ -143,34 +219,39 @@ body.app-ready #controls-hint:not(.hidden) {
 
 .floor-btn {
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.82);
-  padding: 9px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.72);
+  padding: 8px 16px;
   border-radius: 999px;
   cursor: pointer;
   font-family: inherit;
   font-weight: 600;
   font-size: 12px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   transition: background 0.18s, border-color 0.18s, transform 0.15s, box-shadow 0.18s, color 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .floor-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
   transform: translateY(-1px);
 }
 
 .floor-btn.active {
   background: linear-gradient(135deg, rgba(255, 100, 0, 0.28), rgba(255, 184, 0, 0.18));
-  border-color: rgba(255, 140, 0, 0.45);
+  border-color: rgba(255, 140, 0, 0.42);
   color: #fff;
-  box-shadow: 0 4px 20px rgba(255, 100, 0, 0.2);
+  box-shadow: 0 4px 20px rgba(255, 100, 0, 0.18);
 }
 
 .floor-btn--reset {
-  color: rgba(255, 255, 255, 0.55);
-  border-style: dashed;
+  color: rgba(255, 255, 255, 0.48);
+  border-color: rgba(255, 255, 255, 0.07);
+  padding: 8px 14px;
 }
 
 /* ─── Room hover tooltip ─── */
@@ -317,40 +398,17 @@ body.app-ready #controls-hint:not(.hidden) {
   gap: 4px;
 }
 
-.loader-logo-mark {
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  font-size: 26px;
-  font-weight: 800;
-  color: #fff;
-  background: linear-gradient(135deg, var(--tumo-orange), var(--tumo-gold));
-  box-shadow: 0 8px 32px rgba(255, 100, 0, 0.35);
-  animation: loader-mark-float 3s ease-in-out infinite;
+.loader-sf-logo {
+  display: block;
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  animation: loader-logo-breathe 2.8s ease-in-out infinite;
 }
 
-@keyframes loader-mark-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-
-.loader-logo-text {
-  margin-top: 12px;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  animation: logo-glow 2.5s infinite alternate;
-}
-
-.loader-logo-sub {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+@keyframes loader-logo-breathe {
+  0%, 100% { opacity: 0.85; transform: translateY(0); }
+  50%       { opacity: 1;    transform: translateY(-3px); }
 }
 
 .loader-status {
@@ -1383,17 +1441,53 @@ body.furnish-remove-mode #placement-crosshair::after {
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.18s, color 0.18s, transform 0.12s;
 }
 .furnish-bar-btn svg { opacity: 0.85; flex-shrink: 0; }
 .furnish-bar-btn span { white-space: nowrap; }
 .furnish-bar-btn:last-child { border-right: none; }
 .furnish-bar-btn:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
-.furnish-bar-btn--exit { color: #ff9a90; }
-.furnish-bar-btn--exit:hover { background: rgba(255, 80, 70, 0.12); }
-.furnish-bar-btn--plan { color: #8ec5ff; }
-.furnish-bar-btn--plan:hover { background: rgba(80, 140, 255, 0.12); }
-.furnish-bar-btn--clear { color: rgba(255, 255, 255, 0.45); }
+
+/* Exit — danger tint */
+.furnish-bar-btn--exit { color: rgba(255, 154, 144, 0.85); }
+.furnish-bar-btn--exit:hover { background: rgba(255, 80, 70, 0.1); color: #ff9a90; }
+
+/* Book it — primary CTA */
+.furnish-bar-btn--plan {
+  position: relative;
+  flex: 1.35;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(255, 100, 0, 0.22) 0%, rgba(255, 184, 0, 0.14) 100%);
+  border-right-color: rgba(255, 140, 0, 0.18);
+  border-left: 1px solid rgba(255, 140, 0, 0.18);
+  font-size: 12px;
+  font-weight: 700;
+}
+.furnish-bar-btn--plan::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 120, 0, 0.25), rgba(255, 200, 0, 0.12));
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.furnish-bar-btn--plan:hover::before { opacity: 1; }
+.furnish-bar-btn--plan:hover {
+  background: linear-gradient(135deg, rgba(255, 100, 0, 0.22) 0%, rgba(255, 184, 0, 0.14) 100%);
+  color: #fff;
+}
+.furnish-bar-btn__arrow {
+  opacity: 0.6;
+  transition: transform 0.2s var(--ease-out), opacity 0.2s;
+}
+.furnish-bar-btn--plan:hover .furnish-bar-btn__arrow {
+  transform: translateX(3px);
+  opacity: 1;
+}
+
+/* Clear — muted */
+.furnish-bar-btn--clear { color: rgba(255, 255, 255, 0.4); }
+.furnish-bar-btn--clear:hover { color: rgba(255, 255, 255, 0.7); }
 
 #placement-crosshair {
   position: fixed;

@@ -220,13 +220,36 @@ onMounted(loadDetail)
     <section class="request-detail__section split-grid two-col">
       <article class="card detail-panel">
         <h2 class="admin-section__title">Request details</h2>
-        <div><strong>Client:</strong> {{ requestDetail.client?.full_name ?? 'Unknown' }}</div>
-        <div><strong>Organization:</strong> {{ requestDetail.client?.organization ?? 'N/A' }}</div>
-        <div><strong>Venue:</strong> {{ requestDetail.venue?.name ?? 'Not assigned' }}</div>
-        <div><strong>Time:</strong> {{ requestDetail.start_time }} - {{ requestDetail.end_time }}</div>
-        <div><strong>Setup / teardown:</strong> {{ requestDetail.setup_time_minutes }} / {{ requestDetail.teardown_time_minutes }} mins</div>
-        <div><strong>Requirements:</strong> {{ requestDetail.special_requirements || 'None' }}</div>
-        <div v-if="requestDetail.description"><strong>Description:</strong> {{ requestDetail.description }}</div>
+        <dl class="detail-dl">
+          <div class="detail-dl__row">
+            <dt>Client</dt>
+            <dd>{{ requestDetail.client?.full_name ?? 'Unknown' }}</dd>
+          </div>
+          <div class="detail-dl__row">
+            <dt>Organization</dt>
+            <dd>{{ requestDetail.client?.organization ?? '—' }}</dd>
+          </div>
+          <div class="detail-dl__row">
+            <dt>Venue</dt>
+            <dd>{{ requestDetail.venue?.name ?? 'Not assigned' }}</dd>
+          </div>
+          <div class="detail-dl__row">
+            <dt>Time</dt>
+            <dd>{{ requestDetail.start_time }} – {{ requestDetail.end_time }}</dd>
+          </div>
+          <div class="detail-dl__row">
+            <dt>Setup / teardown</dt>
+            <dd>{{ requestDetail.setup_time_minutes }} / {{ requestDetail.teardown_time_minutes }} mins</dd>
+          </div>
+          <div class="detail-dl__row">
+            <dt>Requirements</dt>
+            <dd>{{ requestDetail.special_requirements || 'None' }}</dd>
+          </div>
+          <div v-if="requestDetail.description" class="detail-dl__row detail-dl__row--full">
+            <dt>Description</dt>
+            <dd>{{ requestDetail.description }}</dd>
+          </div>
+        </dl>
       </article>
 
       <AiProposalCard
@@ -511,6 +534,46 @@ onMounted(loadDetail)
   height: 12px;
   border-radius: 3px;
   flex-shrink: 0;
+}
+
+/* ---- Definition list for detail panel ---- */
+.detail-dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.detail-dl__row {
+  display: grid;
+  grid-template-columns: 11ch 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-light);
+  align-items: baseline;
+}
+
+.detail-dl__row:last-child {
+  border-bottom: none;
+}
+
+.detail-dl__row--full {
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+
+.detail-dl dt {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-dl dd {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  line-height: 1.55;
 }
 
 @media (max-width: 640px) {

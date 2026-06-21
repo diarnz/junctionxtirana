@@ -119,16 +119,32 @@ onMounted(async () => {
           <div class="split-grid two-col">
             <section class="card admin-section detail-card">
               <h2 class="admin-section__title">Event details</h2>
-              <div class="detail-fields">
-                <div><strong>Date:</strong> {{ request.requested_date }}</div>
-                <div><strong>Time:</strong> {{ request.start_time }} – {{ request.end_time }}</div>
-                <div><strong>Venue:</strong> {{ request.venue?.name || 'To be assigned' }}</div>
-                <div v-if="request.description"><strong>Description:</strong> {{ request.description }}</div>
-                <div v-if="request.special_requirements"><strong>Special requirements:</strong> {{ request.special_requirements }}</div>
-                <div v-if="request.rejection_reason" class="detail-rejection">
-                  <strong>Rejection reason:</strong> {{ request.rejection_reason }}
+              <dl class="detail-dl">
+                <div class="detail-dl__row">
+                  <dt>Date</dt>
+                  <dd>{{ request.requested_date }}</dd>
                 </div>
-              </div>
+                <div class="detail-dl__row">
+                  <dt>Time</dt>
+                  <dd>{{ request.start_time }} – {{ request.end_time }}</dd>
+                </div>
+                <div class="detail-dl__row">
+                  <dt>Venue</dt>
+                  <dd>{{ request.venue?.name || 'To be assigned' }}</dd>
+                </div>
+                <div v-if="request.description" class="detail-dl__row detail-dl__row--full">
+                  <dt>Description</dt>
+                  <dd>{{ request.description }}</dd>
+                </div>
+                <div v-if="request.special_requirements" class="detail-dl__row detail-dl__row--full">
+                  <dt>Special requirements</dt>
+                  <dd>{{ request.special_requirements }}</dd>
+                </div>
+                <div v-if="request.rejection_reason" class="detail-dl__row detail-dl__row--full detail-dl__row--error">
+                  <dt>Rejection reason</dt>
+                  <dd>{{ request.rejection_reason }}</dd>
+                </div>
+              </dl>
             </section>
 
             <section class="card admin-section detail-card">
@@ -136,9 +152,14 @@ onMounted(async () => {
               <p class="section-copy">
                 Your request moves through AI analysis, staff review, quotation, and final confirmation.
               </p>
-              <div class="badge badge-neutral">Submitted {{ new Date(request.created_at).toLocaleString() }}</div>
-              <div v-if="aiSummary" class="detail-ai card">
-                <strong>AI summary</strong>
+              <div class="badge badge-neutral detail-submitted-badge">
+                Submitted {{ new Date(request.created_at).toLocaleString() }}
+              </div>
+              <div v-if="aiSummary" class="detail-ai">
+                <div class="detail-ai__head">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2Z"/></svg>
+                  <strong>AI summary</strong>
+                </div>
                 <p class="detail-ai__text">{{ aiSummary }}</p>
               </div>
               <p v-else class="detail-placeholder">
@@ -180,22 +201,79 @@ onMounted(async () => {
   padding: var(--space-6);
 }
 
-.detail-fields {
+.detail-dl {
+  margin: 0;
+  padding: 0;
   display: grid;
-  gap: var(--space-3);
+  gap: 0;
+  border-top: 1px solid var(--border-light);
 }
 
-.detail-rejection {
+.detail-dl__row {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.detail-dl__row--full {
+  grid-template-columns: 1fr;
+}
+
+.detail-dl__row--error dd {
   color: var(--error);
+}
+
+.detail-dl dt {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-dl dd {
+  margin: 0;
+  font-size: 0.94rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+}
+
+.detail-submitted-badge {
+  width: fit-content;
 }
 
 .detail-ai {
   padding: var(--space-4);
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.detail-ai__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent-dark);
+  margin-bottom: var(--space-3);
+}
+.detail-ai__head svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.detail-ai__head strong {
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .detail-ai__text {
-  margin: var(--space-2) 0 0;
+  margin: 0;
+  font-size: 0.93rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
 }
 
 .detail-placeholder {

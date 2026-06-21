@@ -227,11 +227,10 @@ onMounted(loadCalendar)
   <section class="admin-page calendar-page">
     <div class="calendar-intro">
       <div>
-        <p class="calendar-eyebrow">Live schedule</p>
+        <p class="calendar-eyebrow">Live schedule · Pyramid of Tirana</p>
         <h2>Operations calendar</h2>
         <p class="admin-page-intro">
-          See exact event times, active rooms, conflicts, and the operational agenda for
-          any selected date.
+          See exact event times, active rooms, conflicts, and the agenda for any selected date.
         </p>
       </div>
       <button type="button" class="button button-secondary" :disabled="loading" @click="loadCalendar">
@@ -604,18 +603,30 @@ onMounted(loadCalendar)
 }
 
 :deep(.fc .fc-button-primary) {
-  min-height: 38px;
-  padding: 0.4rem 0.75rem;
-  border-color: var(--primary);
-  background-color: var(--primary);
-  font-size: 0.75rem;
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  border-color: var(--accent);
+  background-color: var(--accent);
+  font-size: 0.76rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-md);
+  transition: background var(--t-base), border-color var(--t-base), box-shadow var(--t-base);
 }
 
-:deep(.fc .fc-button-primary:not(:disabled):hover),
+:deep(.fc .fc-button-primary:not(:disabled):hover) {
+  border-color: var(--accent-hover);
+  background-color: var(--accent-hover);
+  box-shadow: 0 4px 12px -4px rgba(61,169,245,.5);
+}
+
 :deep(.fc .fc-button-primary.fc-button-active) {
-  border-color: var(--primary-dark);
-  background-color: var(--primary-dark);
+  border-color: var(--accent-dark);
+  background-color: var(--accent-dark);
+}
+
+:deep(.fc .fc-button-primary:disabled) {
+  opacity: 0.55;
 }
 
 :deep(.fc-toolbar) {

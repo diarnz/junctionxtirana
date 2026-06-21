@@ -14,13 +14,25 @@ const pageTitle = computed(() => {
   }
   const titles: Record<string, string> = {
     '/admin/dashboard': 'Dashboard',
-    '/admin/requests': 'Event Requests',
+    '/admin/requests': 'Requests',
     '/admin/inventory': 'Inventory',
     '/admin/calendar': 'Calendar',
     '/admin/quotations': 'Quotations',
-    '/admin/tasks': 'Operational Tasks',
+    '/admin/tasks': 'Tasks',
   }
   return titles[route.path] ?? 'Admin'
+})
+
+const pageSubtitle = computed(() => {
+  const subs: Record<string, string> = {
+    '/admin/dashboard': 'Event requests and booking activity',
+    '/admin/requests': 'Review and manage all event requests',
+    '/admin/inventory': 'Assets, availability, and stock levels',
+    '/admin/calendar': 'Live operations schedule',
+    '/admin/quotations': 'Quotes, pricing, and approvals',
+    '/admin/tasks': 'Setup, teardown, and coordination',
+  }
+  return subs[route.path] ?? 'Pyramid of Tirana · SpaceFlow'
 })
 </script>
 
@@ -30,14 +42,20 @@ const pageTitle = computed(() => {
 
     <div class="admin-content-shell">
       <header class="admin-topbar">
-        <div class="topbar__title">
-          <h1>{{ pageTitle }}</h1>
-          <span>Pyramid of Tirana · operations console</span>
+        <div class="topbar__left">
+          <div class="topbar__title">
+            <h1 class="topbar__page-name">{{ pageTitle }}</h1>
+            <p class="topbar__page-sub">{{ pageSubtitle }}</p>
+          </div>
         </div>
 
-        <div class="topbar__actions">
-          <div class="badge" :class="websocket.connected ? 'badge-success' : 'badge-warning'">
-            <span class="topbar__dot" />
+        <div class="topbar__right">
+          <div
+            class="topbar__ws-badge"
+            :class="websocket.connected ? 'is-live' : 'is-off'"
+            :title="websocket.connected ? 'Realtime updates active' : 'Reconnecting to realtime…'"
+          >
+            <span class="topbar__ws-dot" aria-hidden="true" />
             {{ websocket.connected ? 'Live' : 'Reconnecting' }}
           </div>
         </div>
@@ -51,30 +69,78 @@ const pageTitle = computed(() => {
 </template>
 
 <style scoped>
-.topbar__title h1 {
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.topbar__title {
+  min-width: 0;
+}
+
+.topbar__page-name {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.topbar__title span {
+.topbar__page-sub {
+  margin: 0;
   color: var(--text-tertiary);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.topbar__actions {
-  display: inline-flex;
+.topbar__right {
+  display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
-.topbar__dot {
-  width: 8px;
-  height: 8px;
+.topbar__ws-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.topbar__ws-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
   background: currentColor;
-  display: inline-block;
+}
+
+.topbar__ws-badge.is-live {
+  background: var(--success-light);
+  color: #18996a;
+}
+.topbar__ws-badge.is-live .topbar__ws-dot {
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.topbar__ws-badge.is-off {
+  background: var(--warning-light);
+  color: #b9791a;
 }
 </style>

@@ -133,14 +133,59 @@ async function saveProfile() {
 
           <!-- ACCESS -->
           <section class="card account-card fade-up-2">
-            <h2 class="account-card__title">Your SpaceFlow access</h2>
-            <ul class="access-list">
-              <li v-if="auth.isStaff">Review and approve incoming event requests.</li>
-              <li v-if="auth.isStaff">Manage inventory, quotations, tasks, and 3D layouts.</li>
-              <li v-if="!auth.isStaff">Submit and track event requests for Pyramid spaces.</li>
-              <li v-if="!auth.isStaff">Receive AI venue recommendations and conflict checks.</li>
-              <li>Sign in with email/password or Google (when enabled in Supabase).</li>
-            </ul>
+            <h2 class="account-card__title">Your access</h2>
+
+            <div class="access-features">
+              <template v-if="auth.isStaff">
+                <div class="access-feat">
+                  <span class="access-feat__icon access-feat__icon--blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><polyline points="9 11 12 14 22 4"/></svg>
+                  </span>
+                  <div>
+                    <strong>Request review</strong>
+                    <span>Approve or reject incoming event requests</span>
+                  </div>
+                </div>
+                <div class="access-feat">
+                  <span class="access-feat__icon access-feat__icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                  </span>
+                  <div>
+                    <strong>Inventory management</strong>
+                    <span>Manage assets, quotations, and 3D layouts</span>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="access-feat">
+                  <span class="access-feat__icon access-feat__icon--blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+                  </span>
+                  <div>
+                    <strong>Submit &amp; track requests</strong>
+                    <span>Book Pyramid venues and follow every update</span>
+                  </div>
+                </div>
+                <div class="access-feat">
+                  <span class="access-feat__icon access-feat__icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2Z"/></svg>
+                  </span>
+                  <div>
+                    <strong>AI recommendations</strong>
+                    <span>Smart venue suggestions and conflict checks</span>
+                  </div>
+                </div>
+              </template>
+              <div class="access-feat">
+                <span class="access-feat__icon access-feat__icon--neutral">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </span>
+                <div>
+                  <strong>Email or Google sign-in</strong>
+                  <span>Secure authentication with your preferred method</span>
+                </div>
+              </div>
+            </div>
 
             <div class="access-actions">
               <RouterLink to="/venues" class="button button-secondary button-block">Browse venues</RouterLink>
@@ -223,16 +268,63 @@ async function saveProfile() {
   font-weight: 500;
 }
 
-.access-list {
-  margin: 0;
-  padding-left: 1.15rem;
-  color: var(--text-secondary);
+.access-features {
   display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.access-feat {
+  display: flex;
+  align-items: flex-start;
   gap: var(--space-3);
 }
-.access-list li::marker {
-  color: var(--accent);
+
+.access-feat__icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
 }
+.access-feat__icon svg {
+  width: 18px;
+  height: 18px;
+}
+.access-feat__icon--blue {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border-color: rgba(61, 169, 245, 0.22);
+}
+.access-feat__icon--green {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: rgba(46, 201, 138, 0.22);
+}
+.access-feat__icon--neutral {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
+}
+
+.access-feat div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.access-feat strong {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.access-feat span {
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .access-actions {
   margin-top: var(--space-6);
   display: grid;

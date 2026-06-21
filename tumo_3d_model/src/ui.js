@@ -401,6 +401,9 @@ export function enterRoom(hitObject) {
 
   // Update UI Elements
   setOutdoorNavVisible(false);
+
+  const navRoom = document.getElementById('app-navbar-room');
+  if (navRoom) navRoom.textContent = d.name || 'Room';
 }
 
 export function findRoomMeshById(roomId) {
@@ -423,5 +426,9 @@ export function exitIndoorMode() {
     window.spaceFlowBridge?.send('ROOM_EXITED', { roomId: window._currentRoomId });
   }
   window._currentRoomId = null;
+
+  const navRoom = document.getElementById('app-navbar-room');
+  if (navRoom) navRoom.textContent = 'Campus overview';
+
   document.getElementById('btn-reset').click();
 }

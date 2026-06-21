@@ -61,18 +61,21 @@ onMounted(async () => {
           <ThreeDBookingLink class="button button-primary">Submit a request</ThreeDBookingLink>
         </EmptyState>
 
-        <div v-else class="split-grid two-col">
+        <div v-else class="venues-grid">
           <article v-for="venue in venues" :key="venue.id" class="card card-interactive venue">
-            <div class="venue__bar" :style="{ background: accent(venue.name) }" />
+            <div class="venue__accent-bar" :style="{ background: accent(venue.name) }" />
             <div class="venue__body">
               <div class="venue__head">
-                <div>
+                <div class="venue__head-dot" :style="{ background: accent(venue.name) }" aria-hidden="true" />
+                <div class="venue__head-text">
                   <h2 class="venue__title">{{ venue.name }}</h2>
-                  <p class="muted venue__meta">
-                    Floor {{ venue.floor }} · {{ venue.capacity_min }}–{{ venue.capacity_max }} guests
+                  <p class="venue__meta">
+                    Floor {{ venue.floor >= 0 ? venue.floor : `B${Math.abs(venue.floor)}` }} &nbsp;·&nbsp;
+                    {{ venue.capacity_min }}–{{ venue.capacity_max }} guests
+                    <template v-if="venue.area_sqm">&nbsp;·&nbsp; {{ venue.area_sqm }} m²</template>
                   </p>
                 </div>
-                <span class="badge badge-info text-capitalize">{{ formatStatus(venue.status) }}</span>
+                <span class="badge badge-info text-capitalize venue__status">{{ formatStatus(venue.status) }}</span>
               </div>
 
               <p class="venue__desc">
@@ -80,18 +83,18 @@ onMounted(async () => {
               </p>
 
               <div class="venue__amenities">
-                <div class="venue__amenities-label">Amenities</div>
+                <p class="venue__amenities-label">Amenities</p>
                 <div class="venue__chips">
-                  <span v-for="item in venue.amenities" :key="item" class="badge badge-neutral venue__chip">
+                  <span v-for="item in venue.amenities" :key="item" class="badge badge-neutral">
                     {{ item }}
                   </span>
                 </div>
               </div>
 
               <div class="venue__foot">
-                <div>
-                  <div class="muted venue__rate-label">Base hourly rate</div>
-                  <strong class="venue__price">€{{ venue.base_price_per_hour }}</strong>
+                <div class="venue__pricing">
+                  <span class="venue__rate-label">Starting from</span>
+                  <strong class="venue__price">€{{ venue.base_price_per_hour }}<span class="venue__per">/hr</span></strong>
                 </div>
                 <ThreeDBookingLink :venue-id="venue.id" class="button button-primary">
                   Book this space
@@ -106,12 +109,21 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.venue {
-  overflow: hidden;
+.venues-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
 }
 
-.venue__bar {
-  height: 6px;
+.venue {
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 5px 1fr;
+}
+
+.venue__accent-bar {
+  width: 5px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
 .venue__body {
@@ -122,24 +134,44 @@ onMounted(async () => {
 
 .venue__head {
   display: flex;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: var(--space-3);
 }
 
+.venue__head-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.venue__head-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .venue__title {
-  margin: 0 0 0.25rem;
-  font-size: 1.28rem;
+  margin: 0 0 0.2rem;
+  font-size: 1.22rem;
+  font-weight: 760;
 }
 
 .venue__meta {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.venue__status {
+  flex-shrink: 0;
 }
 
 .venue__desc {
   margin: 0;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.65;
+  font-size: 0.95rem;
 }
 
 .venue__amenities {
@@ -148,11 +180,12 @@ onMounted(async () => {
 }
 
 .venue__amenities-label {
-  font-size: 0.78rem;
+  margin: 0;
+  font-size: 0.72rem;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 650;
+  letter-spacing: 0.05em;
+  font-weight: 700;
 }
 
 .venue__chips {
@@ -161,25 +194,43 @@ onMounted(async () => {
   gap: var(--space-2);
 }
 
-.venue__chip {
-  text-transform: none;
-}
-
 .venue__foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  padding-top: var(--space-3);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--border-light);
 }
 
+.venue__pricing {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .venue__rate-label {
-  font-size: 0.78rem;
-  margin-bottom: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
 }
 
 .venue__price {
-  font-size: 1.12rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.venue__per {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-left: 1px;
+}
+
+@media (max-width: 960px) {
+  .venues-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

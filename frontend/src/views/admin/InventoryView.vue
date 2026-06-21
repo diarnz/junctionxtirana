@@ -140,41 +140,61 @@ onMounted(async () => {
 
 <template>
   <section class="admin-page">
-    <p class="admin-page-intro">
-      Track furniture, AV, and staging inventory with availability across booking windows.
-    </p>
 
-    <div class="admin-stat-grid">
-      <article class="admin-stat">
-        <p class="admin-stat__label">Asset types</p>
-        <p class="admin-stat__value">{{ assets.items.length }}</p>
+    <div class="inv-stat-grid">
+      <article class="inv-stat">
+        <div class="inv-stat__icon inv-stat__icon--blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <div>
+          <p class="inv-stat__label">Asset types</p>
+          <p class="inv-stat__value">{{ assets.items.length }}</p>
+        </div>
       </article>
-      <article class="admin-stat">
-        <p class="admin-stat__label">Units tracked</p>
-        <p class="admin-stat__value">{{ assets.totalUnits }}</p>
+      <article class="inv-stat">
+        <div class="inv-stat__icon inv-stat__icon--green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        <div>
+          <p class="inv-stat__label">Units tracked</p>
+          <p class="inv-stat__value">{{ assets.totalUnits }}</p>
+        </div>
       </article>
-      <article class="admin-stat">
-        <p class="admin-stat__label">Conflict risk next 7 days</p>
-        <p class="admin-stat__value">
-          {{ assets.summary.filter((item) => item.has_conflict_next_7_days).length }}
-        </p>
+      <article class="inv-stat">
+        <div class="inv-stat__icon inv-stat__icon--warning">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div>
+          <p class="inv-stat__label">Conflict risk (7 days)</p>
+          <p class="inv-stat__value" :class="{ 'is-alert': assets.summary.filter(i => i.has_conflict_next_7_days).length > 0 }">
+            {{ assets.summary.filter((item) => item.has_conflict_next_7_days).length }}
+          </p>
+        </div>
       </article>
-      <article class="admin-stat">
-        <p class="admin-stat__label">
-          {{ rangeActive ? 'Fully booked in window' : '3D-linked assets' }}
-        </p>
-        <p class="admin-stat__value" :class="{ 'admin-stat__value--alert': rangeActive && rangeConflicts }">
-          {{ rangeActive ? rangeConflicts : assets.items.filter((item) => item.three_d_item_key).length }}
-        </p>
+      <article class="inv-stat">
+        <div class="inv-stat__icon inv-stat__icon--neutral">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </div>
+        <div>
+          <p class="inv-stat__label">{{ rangeActive ? 'Fully booked in window' : '3D-linked assets' }}</p>
+          <p class="inv-stat__value" :class="{ 'is-alert': rangeActive && rangeConflicts > 0 }">
+            {{ rangeActive ? rangeConflicts : assets.items.filter((item) => item.three_d_item_key).length }}
+          </p>
+        </div>
       </article>
     </div>
 
     <article class="card admin-panel admin-panel--range">
       <div class="admin-panel__intro">
-        <h2 class="admin-section__title">Check availability for a date range</h2>
-        <p class="section-copy">
-          See what's free across overlapping bookings for your selected dates.
-        </p>
+        <div class="admin-panel__intro-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <h2 class="admin-section__title">Check availability for a date range</h2>
+          <p class="section-copy">
+            See what's free across overlapping bookings for your selected dates.
+          </p>
+        </div>
       </div>
       <div class="admin-panel__fields">
         <label class="field">
@@ -314,6 +334,64 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.inv-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.inv-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t-base) var(--ease-out), box-shadow var(--t-base) var(--ease-out);
+}
+
+.inv-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.inv-stat__icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+}
+
+.inv-stat__icon svg { width: 20px; height: 20px; }
+
+.inv-stat__icon--blue { background: var(--accent-light); color: var(--accent-dark); border: 1px solid rgba(61,169,245,.2); }
+.inv-stat__icon--green { background: var(--success-light); color: #18996a; border: 1px solid rgba(46,201,138,.2); }
+.inv-stat__icon--warning { background: var(--warning-light); color: #b9791a; border: 1px solid rgba(245,166,35,.2); }
+.inv-stat__icon--neutral { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-light); }
+
+.inv-stat__label {
+  margin: 0 0 var(--space-1);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inv-stat__value {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-stat__value.is-alert { color: var(--error); }
+
 .admin-panel {
   padding: var(--space-5);
   display: grid;
@@ -324,6 +402,26 @@ onMounted(async () => {
   gap: var(--space-5);
 }
 
+.admin-panel__intro {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.admin-panel__intro-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border: 1px solid rgba(61,169,245,.2);
+  display: grid;
+  place-items: center;
+}
+
+.admin-panel__intro-icon svg { width: 20px; height: 20px; }
+
 .admin-panel__fields {
   display: flex;
   flex-wrap: wrap;
@@ -333,10 +431,6 @@ onMounted(async () => {
 
 .admin-panel__fields .field {
   min-width: 150px;
-}
-
-.admin-stat__value--alert {
-  color: var(--error);
 }
 
 .asset-card {
@@ -417,5 +511,12 @@ onMounted(async () => {
 .field small {
   color: var(--text-tertiary);
   line-height: 1.45;
+}
+
+@media (max-width: 1024px) {
+  .inv-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .inv-stat-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -145,7 +145,63 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section v-if="auth.isAuthenticated" class="public-band band--alt">
+    <!-- HOW IT WORKS — unauthenticated visitors -->
+    <section v-if="!auth.isAuthenticated" class="public-band how-band">
+      <div class="page-shell page-stack">
+        <div class="how-intro">
+          <span class="eyebrow">How it works</span>
+          <h2 class="section-title how-intro__title">
+            Book the Pyramid in three steps
+          </h2>
+          <p class="section-copy">
+            From submitting a request to walking your configured layout in 3D — everything lives in one streamlined platform.
+          </p>
+        </div>
+
+        <div class="how-grid">
+          <div class="how-step fade-up">
+            <div class="how-step__num">01</div>
+            <div class="how-step__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1"/>
+                <line x1="9" y1="12" x2="15" y2="12"/>
+                <line x1="9" y1="16" x2="13" y2="16"/>
+              </svg>
+            </div>
+            <h3 class="how-step__title">Request a space</h3>
+            <p class="how-step__text">Browse all five Pyramid venues, pick the right one for your event, and submit a detailed booking request with your dates, attendees, and requirements.</p>
+          </div>
+
+          <div class="how-step fade-up-1">
+            <div class="how-step__num">02</div>
+            <div class="how-step__icon how-step__icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <path d="M3.3 7.5 12 12l8.7-4.5M12 22V12"/>
+              </svg>
+            </div>
+            <h3 class="how-step__title">Design in 3D</h3>
+            <p class="how-step__text">Walk through a photorealistic 3D model of the Pyramid. Drag furniture, set up your stage or tables, and let AI suggest the ideal room configuration.</p>
+          </div>
+
+          <div class="how-step fade-up-2">
+            <div class="how-step__num">03</div>
+            <div class="how-step__icon how-step__icon--warning">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <h3 class="how-step__title">Confirm &amp; go</h3>
+            <p class="how-step__text">Staff review your request, resolve any conflicts with AI, send a custom quotation, and lock your event in — all tracked in real time from your dashboard.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3D BANNER — shown to all users -->
+    <section class="public-band public-band--alt">
       <div class="page-shell">
         <a
           :href="threeDBookingUrl"
@@ -169,7 +225,7 @@ onMounted(async () => {
             <span class="eyebrow">Book in 3D</span>
             <h2 class="book-3d-banner__title">Walk the building and book a room</h2>
             <p class="book-3d-banner__text">
-              Choose a room, design your layout, and submit your request — all in one view.
+              Choose a room, design your layout, and submit your request — all in one immersive view.
             </p>
             <p class="book-3d-banner__steps">Enter a room · Arrange layout · Book and submit</p>
           </div>
@@ -298,6 +354,101 @@ onMounted(async () => {
   .section-head {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+/* ---- How it works section ---- */
+.how-band {
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-light);
+}
+
+.how-intro {
+  text-align: center;
+  max-width: 560px;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+.how-intro__title {
+  margin: 0;
+}
+
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.how-step {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t-base) var(--ease-out), box-shadow var(--t-base) var(--ease-out), border-color var(--t-base) var(--ease-out);
+}
+.how-step:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(61, 169, 245, 0.3);
+}
+
+.how-step__num {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.how-step__icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-lg);
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border: 1px solid rgba(61, 169, 245, 0.22);
+}
+.how-step__icon--green {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: rgba(46, 201, 138, 0.25);
+}
+.how-step__icon--warning {
+  background: var(--warning-light);
+  color: var(--warning);
+  border-color: rgba(245, 166, 35, 0.25);
+}
+.how-step__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.how-step__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.how-step__text {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 860px) {
+  .how-grid {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+    margin: 0 auto;
   }
 }
 </style>
