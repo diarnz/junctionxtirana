@@ -17,7 +17,6 @@ const navItems = computed(() => [
   { to: '/admin/calendar', label: 'Calendar', icon: 'C' },
   { to: '/admin/quotations', label: 'Quotations', icon: 'Q' },
   { to: '/admin/tasks', label: 'Tasks', icon: 'T' },
-  { to: '/admin/visualization', label: '3D View', icon: '3' },
 ])
 
 function isActive(to: string) {

@@ -5,12 +5,10 @@ import { RouterLink } from 'vue-router'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ThreeDBookingLink from '@/components/ui/ThreeDBookingLink.vue'
 import RequestCard from '@/components/requests/RequestCard.vue'
-import { useAiStore } from '@/stores/ai'
 import { useAssetsStore } from '@/stores/assets'
 import { useRequestsStore } from '@/stores/requests'
 import { useWebsocketStore } from '@/stores/websocket'
 
-const ai = useAiStore()
 const assets = useAssetsStore()
 const requests = useRequestsStore()
 const websocket = useWebsocketStore()
@@ -83,10 +81,6 @@ onMounted(async () => {
           <ThreeDBookingLink class="button button-secondary button-block">New booking request</ThreeDBookingLink>
           <RouterLink to="/admin/inventory" class="button button-secondary button-block">Open inventory</RouterLink>
           <RouterLink to="/admin/calendar" class="button button-secondary button-block">View calendar</RouterLink>
-          <RouterLink to="/admin/visualization" class="button button-secondary button-block">Open 3D view</RouterLink>
-          <button type="button" class="button button-primary button-block" @click="ai.setPanelState(true, 'copilot', {})">
-            Ask AI copilot
-          </button>
         </div>
 
         <div class="card admin-panel">

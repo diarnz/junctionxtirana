@@ -1,46 +1,29 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 
-import { friendlyError, quotationsApi, requestsApi } from '@/api/client'
+import { quotationsApi, requestsApi } from '@/api/client'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import { useNotificationsStore } from '@/stores/notifications'
 import type { EventRequestSummary, QuotationResponse } from '@/types'
 
-const notifications = useNotificationsStore()
 const requests = ref<EventRequestSummary[]>([])
 const loading = ref(true)
 const quotationByRequest = reactive<Record<string, QuotationResponse>>({})
-const generatingFor = ref<string | null>(null)
+
+async function ensureQuotation(requestId: string) {
+  try {
+    quotationByRequest[requestId] = await quotationsApi.generate(requestId)
+  } catch {
+    // Leave the row without a quotation if generation fails.
+  }
+}
 
 async function load() {
   loading.value = true
   try {
     requests.value = (await requestsApi.list({ limit: 100, offset: 0 })).items
+    await Promise.all(requests.value.map((item) => ensureQuotation(item.id)))
   } finally {
     loading.value = false
-  }
-}
-
-async function generateQuotation(requestId: string) {
-  generatingFor.value = requestId
-  try {
-    quotationByRequest[requestId] = await quotationsApi.generate(requestId)
-    notifications.push('Quotation generated.', 'success')
-  } catch (err) {
-    notifications.push(friendlyError(err, 'Quotation generation failed.'), 'error')
-  } finally {
-    generatingFor.value = null
-  }
-}
-
-async function sendQuotation(requestId: string) {
-  const quotation = quotationByRequest[requestId]
-  if (!quotation) return
-  try {
-    quotationByRequest[requestId] = await quotationsApi.send(quotation.id)
-    notifications.push('Quotation marked as sent.', 'success')
-  } catch (err) {
-    notifications.push(friendlyError(err, 'Unable to send quotation.'), 'error')
   }
 }
 
@@ -50,7 +33,7 @@ onMounted(load)
 <template>
   <section class="admin-page">
     <p class="admin-page-intro">
-      Generate and send formal quotations from request data and AI-backed pricing.
+      Formal quotations are generated automatically from request data and AI-backed pricing.
     </p>
 
     <div class="admin-section">
@@ -58,7 +41,7 @@ onMounted(load)
         <div>
           <h2 class="admin-section__title">Quotations</h2>
           <p class="section-copy">
-            Generate formal quotations from request data and AI-backed pricing logic.
+            Pricing is calculated automatically for each event request.
           </p>
         </div>
       </div>
@@ -73,7 +56,6 @@ onMounted(load)
               <th>Date</th>
               <th>Status</th>
               <th>Quotation</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -90,30 +72,6 @@ onMounted(load)
                   <div class="muted">{{ quotationByRequest[item.id].status }}</div>
                 </template>
                 <span v-else class="muted">Not generated</span>
-              </td>
-              <td>
-                <button
-                  type="button"
-                  class="button button-secondary"
-                  :disabled="generatingFor === item.id"
-                  @click="generateQuotation(item.id)"
-                >
-                  {{ generatingFor === item.id ? 'Generating...' : 'Generate' }}
-                </button>
-                <button
-                  v-if="quotationByRequest[item.id]"
-                  type="button"
-                  class="button button-primary"
-                  @click="sendQuotation(item.id)"
-                >
-                  Send
-                </button>
-                <RouterLink
-                  :to="`/admin/requests/${item.id}`"
-                  class="button button-ghost"
-                >
-                  Review
-                </RouterLink>
               </td>
             </tr>
           </tbody>
