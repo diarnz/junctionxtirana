@@ -162,6 +162,16 @@ async def route_approve_request(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_staff),
 ) -> StatusTransitionResponse:
+    conflicts = await check_conflicts(request_id, db)
+    if conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot approve request while {len(conflicts)} unresolved "
+                f"conflict{'s' if len(conflicts) != 1 else ''} remain."
+            ),
+        )
+
     previous_status, req = await transition_request_status(request_id, "approved", db=db)
     background_tasks.add_task(_post_approval_workflow, request_id)
     background_tasks.add_task(_notify_status_change, request_id, "approved")

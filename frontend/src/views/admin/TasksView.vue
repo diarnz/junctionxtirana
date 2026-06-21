@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { friendlyError, requestsApi, tasksApi } from '@/api/client'
@@ -19,6 +19,9 @@ const selectedTask = ref<TaskResponse | null>(null)
 const search = ref('')
 const statusFilter = ref<'active' | TaskStatus | 'all'>('active')
 const workerFilter = ref('all')
+const viewMode = ref<'board' | 'detailed'>('board')
+const currentPage = ref(1)
+const pageSize = ref(12)
 
 const editForm = reactive({
   assigned_to: '',
@@ -78,6 +81,42 @@ const filteredTasks = computed(() => {
       return new Date(a.due_at).getTime() - new Date(b.due_at).getTime()
     })
 })
+
+const visibleStatuses = computed(() => {
+  if (statusFilter.value !== 'active' && statusFilter.value !== 'all') {
+    return statusOptions.filter((status) => status.key === statusFilter.value)
+  }
+  if (statusFilter.value === 'active') {
+    return statusOptions.filter((status) => status.key !== 'done')
+  }
+  return statusOptions
+})
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredTasks.value.length / pageSize.value)),
+)
+
+const paginatedTasks = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredTasks.value.slice(start, start + pageSize.value)
+})
+
+const pageStart = computed(() =>
+  filteredTasks.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0,
+)
+
+const pageEnd = computed(() =>
+  Math.min(currentPage.value * pageSize.value, filteredTasks.value.length),
+)
+
+const tasksByStatus = computed(() =>
+  Object.fromEntries(
+    statusOptions.map((status) => [
+      status.key,
+      paginatedTasks.value.filter((task) => task.status === status.key),
+    ]),
+  ) as Record<TaskStatus, TaskResponse[]>,
+)
 
 const stats = computed(() => {
   const active = tasks.value.filter((task) => task.status !== 'done')
@@ -231,6 +270,14 @@ async function saveDispatch() {
 }
 
 onMounted(load)
+
+watch([search, statusFilter, workerFilter, pageSize, viewMode], () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) currentPage.value = pages
+})
 </script>
 
 <template>
@@ -317,13 +364,127 @@ onMounted(load)
           </option>
         </select>
       </label>
+
+      <div class="view-switcher" aria-label="Task view">
+        <button
+          type="button"
+          :class="{ 'is-active': viewMode === 'board' }"
+          @click="viewMode = 'board'"
+        >
+          Board
+        </button>
+        <button
+          type="button"
+          :class="{ 'is-active': viewMode === 'detailed' }"
+          @click="viewMode = 'detailed'"
+        >
+          Detailed
+        </button>
+      </div>
     </div>
 
     <EmptyState v-if="loading" title="Loading the dispatch board…" loading />
 
+    <div v-else-if="filteredTasks.length && viewMode === 'board'" class="task-board">
+      <section
+        v-for="status in visibleStatuses"
+        :key="status.key"
+        class="task-column"
+        :class="`task-column--${status.key}`"
+      >
+        <header class="task-column__header">
+          <div>
+            <span class="task-column__dot" />
+            <h3>{{ status.label }}</h3>
+          </div>
+          <strong>{{ tasksByStatus[status.key].length }}</strong>
+        </header>
+
+        <div v-if="tasksByStatus[status.key].length" class="task-column__list">
+          <article
+            v-for="task in tasksByStatus[status.key]"
+            :key="task.id"
+            class="task-board-card"
+            :class="{
+              'is-overdue': isOverdue(task),
+              'is-blocked': task.status === 'blocked',
+            }"
+          >
+            <button
+              type="button"
+              class="task-board-card__open"
+              :aria-label="`Edit ${task.title}`"
+              @click="openDispatch(task)"
+            >
+              <div class="task-board-card__top">
+                <span
+                  class="priority-marker"
+                  :class="`priority-marker--${task.priority}`"
+                >
+                  P{{ task.priority }}
+                </span>
+                <span v-if="isOverdue(task)" class="task-board-card__late">Overdue</span>
+                <span v-else class="task-board-card__type">
+                  {{ task.task_type.replaceAll('_', ' ') }}
+                </span>
+              </div>
+
+              <h4>{{ task.title }}</h4>
+              <p class="task-board-card__event">
+                {{ task.event_title || 'General venue operations' }}
+              </p>
+
+              <div class="compact-route">
+                <span>{{ task.pickup_room || 'Pickup not set' }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+                <span>{{ task.destination_room || 'Destination not set' }}</span>
+              </div>
+
+              <div v-if="task.items.length" class="compact-items">
+                <span v-for="item in task.items.slice(0, 2)" :key="item.name">
+                  {{ item.quantity }}× {{ item.name }}
+                </span>
+                <span v-if="task.items.length > 2">+{{ task.items.length - 2 }} more</span>
+              </div>
+
+              <footer class="task-board-card__footer">
+                <span class="worker-avatar" aria-hidden="true">
+                  {{ task.assignee_name?.charAt(0).toUpperCase() || '?' }}
+                </span>
+                <span class="task-board-card__worker">
+                  {{ task.assignee_name || 'Unassigned' }}
+                </span>
+                <strong :class="{ 'due-time--late': isOverdue(task) }">
+                  {{ formatDue(task) }}
+                </strong>
+              </footer>
+            </button>
+
+            <select
+              class="board-status-select"
+              :aria-label="`Update status for ${task.title}`"
+              :disabled="updatingTaskId === task.id"
+              :value="task.status"
+              @change="moveTask(task, ($event.target as HTMLSelectElement).value as TaskStatus)"
+            >
+              <option v-for="option in statusOptions" :key="option.key" :value="option.key">
+                {{ option.label }}
+              </option>
+            </select>
+          </article>
+        </div>
+
+        <div v-else class="task-column__empty">
+          No {{ status.label.toLowerCase() }} tasks
+        </div>
+      </section>
+    </div>
+
     <div v-else-if="filteredTasks.length" class="dispatch-list">
       <article
-        v-for="task in filteredTasks"
+        v-for="task in paginatedTasks"
         :key="task.id"
         class="dispatch-card"
         :class="{
@@ -434,6 +595,46 @@ onMounted(load)
         message="Clear the filters or generate operational tasks from an approved request."
       />
     </div>
+
+    <nav
+      v-if="!loading && filteredTasks.length > 0"
+      class="task-pagination"
+      aria-label="Task pages"
+    >
+      <div class="task-pagination__summary">
+        Showing <strong>{{ pageStart }}–{{ pageEnd }}</strong> of
+        <strong>{{ filteredTasks.length }}</strong> tasks
+      </div>
+
+      <label class="task-pagination__size">
+        <span>Per page</span>
+        <select v-model.number="pageSize" class="select">
+          <option :value="8">8</option>
+          <option :value="12">12</option>
+          <option :value="20">20</option>
+        </select>
+      </label>
+
+      <div class="task-pagination__controls">
+        <button
+          type="button"
+          class="button button-secondary"
+          :disabled="currentPage === 1"
+          @click="currentPage--"
+        >
+          Previous
+        </button>
+        <span>Page {{ currentPage }} of {{ totalPages }}</span>
+        <button
+          type="button"
+          class="button button-secondary"
+          :disabled="currentPage === totalPages"
+          @click="currentPage++"
+        >
+          Next
+        </button>
+      </div>
+    </nav>
 
     <div v-if="selectedTask" class="dispatch-modal" role="presentation" @click.self="selectedTask = null">
       <section class="dispatch-sheet" role="dialog" aria-modal="true" aria-labelledby="dispatch-title">
@@ -579,7 +780,7 @@ onMounted(load)
 
 .task-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 190px 210px;
+  grid-template-columns: minmax(260px, 1fr) 180px 200px auto;
   gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--border);
@@ -644,6 +845,329 @@ onMounted(load)
   background: transparent;
   color: var(--text-primary);
   font: inherit;
+}
+
+.view-switcher {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-self: stretch;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.view-switcher button {
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.view-switcher button.is-active {
+  background: var(--surface);
+  color: var(--task-blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.task-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.task-column {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+}
+
+.task-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-1) var(--space-3);
+}
+
+.task-column__header > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.task-column__header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.task-column__header > strong {
+  display: grid;
+  min-width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.task-column__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8392a3;
+}
+
+.task-column--assigned .task-column__dot { background: var(--task-blue); }
+.task-column--in_progress .task-column__dot { background: var(--task-green); }
+.task-column--blocked .task-column__dot { background: var(--task-red); }
+.task-column--done .task-column__dot { background: #687886; }
+
+.task-column__list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.task-column__empty {
+  padding: var(--space-5) var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.task-board-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-out);
+}
+
+.task-board-card:hover {
+  border-color: rgba(38, 127, 194, 0.42);
+  transform: translateY(-2px);
+}
+
+.task-board-card.is-overdue,
+.task-board-card.is-blocked {
+  border-color: rgba(197, 65, 65, 0.4);
+}
+
+.task-board-card__open {
+  display: grid;
+  width: 100%;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-board-card__top,
+.task-board-card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.priority-marker,
+.task-board-card__late,
+.task-board-card__type {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.priority-marker {
+  padding: 3px 7px;
+  border-radius: var(--radius-full);
+  background: var(--warning-light);
+  color: var(--task-amber);
+}
+
+.priority-marker--1 {
+  background: var(--error-light);
+  color: var(--task-red);
+}
+
+.priority-marker--3 {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.task-board-card__late {
+  margin-left: auto;
+  color: var(--task-red);
+}
+
+.task-board-card__type {
+  margin-left: auto;
+  color: var(--text-tertiary);
+}
+
+.task-board-card h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.task-board-card__event {
+  margin: calc(var(--space-2) * -1) 0 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--task-blue-soft);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.compact-route span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-route span:last-child { text-align: right; }
+.compact-route svg { width: 18px; color: var(--task-blue); }
+
+.compact-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.compact-items span {
+  padding: 4px 7px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.task-board-card__footer {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+.worker-avatar {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  font-weight: 800;
+}
+
+.task-board-card__worker {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-board-card__footer strong {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.board-status-select {
+  width: calc(100% - (var(--space-4) * 2));
+  min-height: 36px;
+  margin: 0 var(--space-4) var(--space-4);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.task-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.task-pagination__summary {
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.task-pagination__summary strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.task-pagination__size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.task-pagination__size .select {
+  min-width: 72px;
+}
+
+.task-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.task-pagination__controls span {
+  min-width: 92px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.task-pagination__controls .button {
+  min-height: 40px;
 }
 
 .dispatch-list {
@@ -933,7 +1457,7 @@ onMounted(load)
   }
 
   .task-toolbar {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
   }
 
   .task-search {
@@ -953,6 +1477,15 @@ onMounted(load)
     grid-template-columns: repeat(3, minmax(0, 1fr));
     border-top: 1px solid var(--border);
     border-left: 0;
+  }
+
+  .task-pagination {
+    grid-template-columns: 1fr auto;
+  }
+
+  .task-pagination__controls {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
   }
 }
 
@@ -990,5 +1523,22 @@ onMounted(load)
   .route-arrow span { width: 40px; }
   .dispatch-card__main,
   .dispatch-card__controls { padding: var(--space-4); }
+
+  .task-pagination {
+    grid-template-columns: 1fr;
+  }
+
+  .task-pagination__size {
+    justify-content: space-between;
+  }
+
+  .task-pagination__controls {
+    grid-column: auto;
+    justify-content: space-between;
+  }
+
+  .task-pagination__controls .button {
+    flex: 1;
+  }
 }
 </style>

@@ -12,7 +12,6 @@ const MyRequestsView = () => import('@/views/account/MyRequestsView.vue')
 const ClientRequestDetailView = () => import('@/views/account/ClientRequestDetailView.vue')
 const AdminLayout = () => import('@/components/layout/AdminLayout.vue')
 const DashboardView = () => import('@/views/admin/DashboardView.vue')
-const RequestsView = () => import('@/views/admin/RequestsView.vue')
 const RequestDetailView = () => import('@/views/admin/RequestDetailView.vue')
 const InventoryView = () => import('@/views/admin/InventoryView.vue')
 const CalendarView = () => import('@/views/admin/CalendarView.vue')
@@ -95,8 +94,7 @@ const router = createRouter({
         {
           path: 'requests',
           name: 'admin-requests',
-          component: RequestsView,
-          meta: { title: 'SpaceFlow - Requests' },
+          redirect: '/admin/dashboard',
         },
         {
           path: 'requests/:id',

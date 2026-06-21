@@ -1,19 +1,32 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
 
 import EmptyState from '@/components/ui/EmptyState.vue'
-import ThreeDBookingLink from '@/components/ui/ThreeDBookingLink.vue'
 import RequestCard from '@/components/requests/RequestCard.vue'
 import { useAssetsStore } from '@/stores/assets'
 import { useRequestsStore } from '@/stores/requests'
-import { useWebsocketStore } from '@/stores/websocket'
 
 const assets = useAssetsStore()
 const requests = useRequestsStore()
-const websocket = useWebsocketStore()
 
-const recentRequests = computed(() => requests.list.slice(0, 5))
+const selectedStatus = ref('')
+const search = ref('')
+
+const filteredRequests = computed(() => {
+  const query = search.value.trim().toLowerCase()
+
+  return requests.list.filter((item) => {
+    if (selectedStatus.value && item.status !== selectedStatus.value) return false
+    if (!query) return true
+
+    return (
+      item.title.toLowerCase().includes(query) ||
+      (item.client_name ?? '').toLowerCase().includes(query) ||
+      (item.venue_name ?? '').toLowerCase().includes(query)
+    )
+  })
+})
+
 const approvedCount = computed(
   () => requests.list.filter((item) => item.status === 'approved').length,
 )
@@ -33,7 +46,7 @@ const stats = computed(() => [
 
 onMounted(async () => {
   await Promise.all([
-    requests.fetchList({ limit: 20, offset: 0 }),
+    requests.fetchList({ limit: 100, offset: 0 }),
     assets.fetchAll(),
   ])
 })
@@ -42,7 +55,7 @@ onMounted(async () => {
 <template>
   <section class="admin-page">
     <p class="admin-page-intro">
-      Overview of request volume, quick actions, and live operations status.
+      Review request volume and manage all booking activity.
     </p>
 
     <div class="admin-stat-grid">
@@ -52,50 +65,55 @@ onMounted(async () => {
       </article>
     </div>
 
-    <div class="split-grid two-col">
-      <div class="admin-section">
-        <div class="admin-section__head">
-          <h2 class="admin-section__title">Recent requests</h2>
-          <RouterLink to="/admin/requests" class="link-arrow">
-            View all
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6" />
-            </svg>
-          </RouterLink>
-        </div>
-
-        <EmptyState v-if="requests.loading" title="Loading requests…" loading />
-
-        <div v-else-if="!recentRequests.length" class="card admin-panel">
-          <EmptyState title="No requests yet" message="New booking requests will appear here." />
-        </div>
-
-        <div v-else class="dash-list">
-          <RequestCard v-for="item in recentRequests" :key="item.id" :request="item" />
-        </div>
+    <div class="admin-section">
+      <div class="admin-section__head">
+        <h2 class="admin-section__title">Event requests</h2>
       </div>
 
-      <div class="admin-section">
-        <h2 class="admin-section__title">Quick actions</h2>
-        <div class="card admin-panel">
-          <ThreeDBookingLink class="button button-secondary button-block">New booking request</ThreeDBookingLink>
-          <RouterLink to="/admin/inventory" class="button button-secondary button-block">Open inventory</RouterLink>
-          <RouterLink to="/admin/calendar" class="button button-secondary button-block">View calendar</RouterLink>
+      <div class="page-toolbar">
+        <div class="filter-pills" aria-label="Filter requests by status">
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ 'is-active': selectedStatus === '' }"
+            @click="selectedStatus = ''"
+          >
+            All
+          </button>
+          <button
+            v-for="status in ['submitted', 'under_review', 'quotation_sent', 'approved', 'completed', 'rejected']"
+            :key="status"
+            type="button"
+            class="filter-pill text-capitalize"
+            :class="{ 'is-active': selectedStatus === status }"
+            @click="selectedStatus = status"
+          >
+            {{ status.replace('_', ' ') }}
+          </button>
         </div>
 
-        <div class="card admin-panel">
-          <h3 class="admin-section__title">Realtime status</h3>
-          <div class="dash-status">
-            <span
-              class="dash-status__dot"
-              :class="websocket.connected ? 'is-live' : 'is-off'"
-            />
-            {{ websocket.connected ? 'Admin websocket connected' : 'Admin websocket reconnecting' }}
-          </div>
-          <p class="muted dash-status__meta">
-            Active 3D bridge connections: {{ websocket.active3dConnections }}
-          </p>
-        </div>
+        <label class="dashboard-search">
+          <span class="sr-only">Search requests</span>
+          <input
+            v-model="search"
+            class="input"
+            type="search"
+            placeholder="Search by title, client, or venue..."
+          />
+        </label>
+      </div>
+
+      <EmptyState v-if="requests.loading" title="Loading requests…" loading />
+
+      <div v-else-if="!filteredRequests.length" class="card admin-panel">
+        <EmptyState
+          title="No matching requests"
+          message="No requests match the current search and status filters."
+        />
+      </div>
+
+      <div v-else class="dash-list">
+        <RequestCard v-for="item in filteredRequests" :key="item.id" :request="item" />
       </div>
     </div>
   </section>
@@ -113,33 +131,23 @@ onMounted(async () => {
   gap: var(--space-3);
 }
 
-.dash-status {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-weight: 600;
+.dashboard-search {
+  width: min(100%, 360px);
 }
 
-.dash-status__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.dashboard-search .input {
+  width: 100%;
 }
 
-.dash-status__dot.is-live {
-  background: var(--success);
-  box-shadow: 0 0 0 3px rgba(46, 201, 138, 0.2);
-}
-
-.dash-status__dot.is-off {
-  background: var(--warning);
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.2);
-}
-
-.dash-status__meta {
-  margin: 0;
-  font-size: 0.88rem;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

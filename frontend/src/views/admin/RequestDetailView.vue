@@ -32,7 +32,6 @@ const requestStore = useRequestsStore()
 const notifications = useNotificationsStore()
 const ai = useAiStore()
 
-const activeTab = ref<'overview' | 'conflicts' | 'tasks' | 'reservations' | 'room'>('overview')
 const conflicts = ref<Conflict[]>([])
 const tasks = ref<TaskResponse[]>([])
 const reservations = ref<ReservationResponse[]>([])
@@ -45,6 +44,13 @@ const loadingExtras = ref(false)
 const requestId = computed(() => String(route.params.id))
 const requestDetail = computed(() => requestStore.active)
 const hasRequest = computed(() => Boolean(requestDetail.value))
+const canApproveStatus = computed(() =>
+  ['submitted', 'under_review', 'quotation_sent'].includes(requestDetail.value?.status ?? ''),
+)
+const canRejectStatus = computed(() =>
+  ['submitted', 'under_review', 'quotation_sent'].includes(requestDetail.value?.status ?? ''),
+)
+const hasUnresolvedConflicts = computed(() => conflicts.value.length > 0)
 
 async function loadDetail() {
   await requestStore.fetchOne(requestId.value)
@@ -72,6 +78,11 @@ async function loadExtras() {
 }
 
 async function approve() {
+  if (loadingExtras.value || hasUnresolvedConflicts.value) {
+    notifications.push('Resolve all conflicts before approving this request.', 'warning')
+    return
+  }
+
   actioning.value = true
   try {
     await requestsApi.approve(requestId.value)
@@ -127,21 +138,13 @@ async function runConflictAgent() {
 
 const layoutCounts = computed(() => countItems(layout.value?.items_json ?? []))
 
-const tabs = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'conflicts', label: 'Conflicts' },
-  { id: 'reservations', label: 'Reservations' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'room', label: '3D Room' },
-] as const
-
 function openSpecSheet() {
   window.open(`/admin/requests/${requestId.value}/spec`, '_blank')
 }
 
-function openAi(mode: 'copilot' | 'room_designer' | 'planner' | 'conflict_detector') {
+function openAi() {
   ai.resetConversation()
-  ai.setPanelState(true, mode, {
+  ai.setPanelState(true, 'copilot', {
     request_id: requestId.value,
     venue_name: requestDetail.value?.venue?.name,
     event_request_id: requestId.value,
@@ -159,14 +162,14 @@ onMounted(loadDetail)
     title="Request not found"
     message="This request may have been removed or you may not have access."
   >
-    <RouterLink to="/admin/requests" class="button button-secondary">Back to requests</RouterLink>
+    <RouterLink to="/admin/dashboard" class="button button-secondary">Back to dashboard</RouterLink>
   </EmptyState>
 
   <section v-else class="admin-page request-detail">
     <header class="card request-detail__header">
       <div class="request-detail__top">
         <div>
-          <BackLink to="/admin/requests" label="Back to requests" />
+          <BackLink to="/admin/dashboard" label="Back to dashboard" />
           <h1 class="request-detail__title">{{ requestDetail.title }}</h1>
           <div class="request-detail__meta">
             <RequestStatusBadge :status="requestDetail.status" />
@@ -176,46 +179,45 @@ onMounted(loadDetail)
           </div>
         </div>
 
-        <div class="request-detail__actions">
-          <button type="button" class="button button-secondary" @click="openAi('copilot')">
-            Ask AI
-          </button>
+        <div class="request-detail__action-stack">
+          <div class="request-detail__actions">
+            <button type="button" class="button button-secondary" @click="openAi">
+              Ask AI
+            </button>
+            <button
+              v-if="canApproveStatus"
+              type="button"
+              class="button button-primary"
+              :disabled="actioning || loadingExtras || hasUnresolvedConflicts"
+              :title="hasUnresolvedConflicts ? 'Resolve all conflicts before approval' : undefined"
+              @click="approve"
+            >
+              Approve
+            </button>
+            <button
+              v-if="canRejectStatus"
+              type="button"
+              class="button button-danger"
+              :disabled="actioning"
+              @click="showReject = true"
+            >
+              Reject
+            </button>
+          </div>
           <button
-            v-if="['submitted', 'under_review', 'quotation_sent'].includes(requestDetail.status)"
             type="button"
-            class="button button-primary"
-            :disabled="actioning"
-            @click="approve"
+            class="button button-secondary request-detail__export"
+            :disabled="!layout"
+            @click="openSpecSheet"
           >
-            Approve
-          </button>
-          <button
-            v-if="!['rejected', 'completed', 'cancelled'].includes(requestDetail.status)"
-            type="button"
-            class="button button-danger"
-            :disabled="actioning"
-            @click="showReject = true"
-          >
-            Reject
+            Export A4 spec sheet
           </button>
         </div>
       </div>
 
-      <div class="filter-pills">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          type="button"
-          class="filter-pill"
-          :class="{ 'is-active': activeTab === tab.id }"
-          @click="activeTab = tab.id"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
     </header>
 
-    <div v-if="activeTab === 'overview'" class="split-grid two-col">
+    <section class="request-detail__section split-grid two-col">
       <article class="card detail-panel">
         <h2 class="admin-section__title">Request details</h2>
         <div><strong>Client:</strong> {{ requestDetail.client?.full_name ?? 'Unknown' }}</div>
@@ -234,14 +236,22 @@ onMounted(loadDetail)
       <div v-else class="card detail-panel">
         <EmptyState title="AI proposal in progress" message="The AI proposal is still being prepared for this request." loading />
       </div>
-    </div>
+    </section>
 
-    <div v-else-if="activeTab === 'conflicts'" class="admin-section">
+    <section class="request-detail__section admin-section">
       <div class="admin-section__head">
         <h2 class="admin-section__title">Conflict detection</h2>
         <button type="button" class="button button-secondary" :disabled="actioning" @click="runConflictAgent">
           Run AI conflict check
         </button>
+      </div>
+
+      <div
+        v-if="canApproveStatus && hasUnresolvedConflicts"
+        class="alert alert-error"
+        role="alert"
+      >
+        Approval is blocked until all {{ conflicts.length }} conflict{{ conflicts.length === 1 ? '' : 's' }} below are resolved.
       </div>
 
       <EmptyState v-if="loadingExtras && !conflicts.length" title="Checking conflicts…" loading />
@@ -255,9 +265,9 @@ onMounted(loadDetail)
         :key="index"
         :conflict="conflict"
       />
-    </div>
+    </section>
 
-    <article v-else-if="activeTab === 'reservations'" class="card detail-panel">
+    <article class="card detail-panel request-detail__section">
       <h2 class="admin-section__title">Asset reservations</h2>
 
       <EmptyState v-if="loadingExtras && !reservations.length" title="Loading reservations…" loading />
@@ -281,7 +291,7 @@ onMounted(loadDetail)
       </div>
     </article>
 
-    <div v-else-if="activeTab === 'tasks'" class="admin-section">
+    <section class="request-detail__section admin-section">
       <div class="admin-section__head">
         <h2 class="admin-section__title">Operational tasks</h2>
         <button
@@ -322,28 +332,15 @@ onMounted(loadDetail)
           </div>
         </article>
       </div>
-    </div>
+    </section>
 
-    <div v-else-if="activeTab === 'room'" class="admin-section">
+    <section class="request-detail__section admin-section">
       <div class="admin-section__head">
         <div>
           <h2 class="admin-section__title">Client layout</h2>
           <p class="section-copy">
             {{ layout ? `${layout.item_count} items · ${layout.source.replaceAll('_', ' ')}` : 'No saved layout yet' }}
           </p>
-        </div>
-        <div class="action-row">
-          <button type="button" class="button button-secondary" @click="openAi('room_designer')">
-            Design with AI
-          </button>
-          <button
-            type="button"
-            class="button button-primary"
-            :disabled="!layout"
-            @click="openSpecSheet"
-          >
-            Export A4 spec sheet
-          </button>
         </div>
       </div>
 
@@ -373,7 +370,7 @@ onMounted(loadDetail)
           </div>
         </article>
       </div>
-    </div>
+    </section>
 
     <div v-if="showReject" class="modal-backdrop">
       <div class="modal-card">
@@ -412,6 +409,10 @@ onMounted(loadDetail)
   gap: var(--space-5);
 }
 
+.request-detail__section {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+}
+
 .request-detail__top {
   display: flex;
   align-items: flex-start;
@@ -436,6 +437,16 @@ onMounted(loadDetail)
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
+}
+
+.request-detail__action-stack {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+}
+
+.request-detail__export {
+  width: 100%;
 }
 
 .detail-panel {
@@ -500,5 +511,16 @@ onMounted(loadDetail)
   height: 12px;
   border-radius: 3px;
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .request-detail__action-stack {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .request-detail__actions {
+    display: grid;
+  }
 }
 </style>

@@ -12,7 +12,6 @@ const websocket = useWebsocketStore()
 
 const navItems = computed(() => [
   { to: '/admin/dashboard', label: 'Dashboard', icon: 'D' },
-  { to: '/admin/requests', label: 'Requests', icon: 'R' },
   { to: '/admin/inventory', label: 'Inventory', icon: 'I' },
   { to: '/admin/calendar', label: 'Calendar', icon: 'C' },
   { to: '/admin/quotations', label: 'Quotations', icon: 'Q' },
