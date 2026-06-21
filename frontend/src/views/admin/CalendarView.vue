@@ -29,13 +29,14 @@ const calendarOptions = computed(() => ({
   slotMaxTime: '22:00:00',
   slotLabelInterval: '01:00',
   slotLabelFormat: {
-    meridiem: 'short',
+    hour: 'numeric' as const,
+    meridiem: 'short' as const,
   },
   eventDisplay: 'block',
   eventTimeFormat: {
-    hour: 'numeric',
-    minute: '2-digit',
-    meridiem: 'short',
+    hour: 'numeric' as const,
+    minute: '2-digit' as const,
+    meridiem: 'short' as const,
     omitZeroMinute: true,
   },
   headerToolbar: {

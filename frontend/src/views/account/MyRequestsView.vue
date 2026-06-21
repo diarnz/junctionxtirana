@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import AppNav from '@/components/layout/AppNav.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'

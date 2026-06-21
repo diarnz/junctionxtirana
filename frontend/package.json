@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.12.3",
+    "@types/three": "^0.184.1",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/tsconfig": "^0.9.1",
     "typescript": "~6.0.2",
